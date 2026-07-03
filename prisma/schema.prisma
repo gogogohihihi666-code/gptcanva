@@ -14,36 +14,38 @@ enum UserRole {
 /// 第一版用户表。
 /// 作为登录、资源、生成、配置等模块的统一用户实体。
 model AppUser {
-  id                 String                 @id @default(cuid()) @db.VarChar(36)
-  username           String?                @unique(map: "uk_app_users_username") @db.VarChar(100)
-  passwordHash       String?                @map("password_hash") @db.VarChar(255)
-  name               String?                @db.VarChar(100)
-  avatarUrl          String?                @map("avatar_url") @db.Text
-  email              String?                @unique(map: "uk_app_users_email") @db.VarChar(191)
-  phone              String?                @unique(map: "uk_app_users_phone") @db.VarChar(32)
-  role               UserRole               @default(USER)
-  status             UserStatus             @default(ANONYMOUS)
-  createdAt          DateTime               @default(now()) @map("created_at")
-  updatedAt          DateTime               @updatedAt @map("updated_at")
-  verificationCodes  AuthVerificationCode[]
-  authIdentities     AppUserAuthIdentity[]
-  sessions           AppSession[]
-  authMethodConfigs  AuthMethodConfig[]
-  providerConfigs    AiProviderConfig[]
-  storageConfigs     ObjectStorageConfig[]
-  generationSessions GenerationSession[]
-  generationRecords  GenerationRecord[]
-  agentRuns          AgentRun[]
-  assets             AssetItem[]
-  assetFavorites     AssetFavorite[]
-  membershipOrders   MembershipOrder[]
-  subscriptions      UserSubscription[]
-  rechargeOrders     RechargeOrder[]
-  pointAccountLogs   PointAccountLog[]
-  rewardClaimRecords RewardClaimRecord[]
-  checkinRecords     UserCheckinRecord[]
-  usedCardCodes      CardCode[]             @relation("CardCodeUsedByUser")
-  cardRedeemRecords  CardRedeemRecord[]
+  id                         String                      @id @default(cuid()) @db.VarChar(36)
+  username                   String?                     @unique(map: "uk_app_users_username") @db.VarChar(100)
+  passwordHash               String?                     @map("password_hash") @db.VarChar(255)
+  name                       String?                     @db.VarChar(100)
+  avatarUrl                  String?                     @map("avatar_url") @db.Text
+  email                      String?                     @unique(map: "uk_app_users_email") @db.VarChar(191)
+  phone                      String?                     @unique(map: "uk_app_users_phone") @db.VarChar(32)
+  role                       UserRole                    @default(USER)
+  status                     UserStatus                  @default(ANONYMOUS)
+  createdAt                  DateTime                    @default(now()) @map("created_at")
+  updatedAt                  DateTime                    @updatedAt @map("updated_at")
+  verificationCodes          AuthVerificationCode[]
+  authIdentities             AppUserAuthIdentity[]
+  sessions                   AppSession[]
+  authMethodConfigs          AuthMethodConfig[]
+  providerConfigs            AiProviderConfig[]
+  storageConfigs             ObjectStorageConfig[]
+  generationSessions         GenerationSession[]
+  generationRecords          GenerationRecord[]
+  agentRuns                  AgentRun[]
+  assets                     AssetItem[]
+  assetFavorites             AssetFavorite[]
+  membershipOrders           MembershipOrder[]
+  subscriptions              UserSubscription[]
+  rechargeOrders             RechargeOrder[]
+  paymentTransactions        PaymentTransaction[]
+  benefitGrants              BenefitGrant[]
+  pointAccountLogs           PointAccountLog[]
+  rewardClaimRecords         RewardClaimRecord[]
+  checkinRecords             UserCheckinRecord[]
+  usedCardCodes              CardCode[]                  @relation("CardCodeUsedByUser")
+  cardRedeemRecords          CardRedeemRecord[]
   workflowDefinitions        WorkflowDefinition[]
   workflowDefinitionVersions WorkflowDefinitionVersion[]
 
@@ -398,26 +400,26 @@ model AiSkillStageTemplate {
 /// 工作流定义主表。
 /// 用于保存可视化工作流的基础信息、当前版本与归属信息。
 model WorkflowDefinition {
-  id              String                    @id @default(cuid()) @db.VarChar(36)
-  userId          String?                   @map("user_id") @db.VarChar(36)
-  code            String                    @unique(map: "uk_workflow_definitions_code") @db.VarChar(100)
-  name            String                    @db.VarChar(100)
-  description     String?                   @db.VarChar(255)
-  category        String?                   @db.VarChar(50)
-  scene           WorkflowScene             @default(WORKFLOW_CANVAS)
-  sourceType      WorkflowSourceType        @default(VISUAL) @map("source_type")
-  status          WorkflowDefinitionStatus  @default(DRAFT)
-  currentVersionId String?                  @map("current_version_id") @db.VarChar(36)
-  latestVersionNo Int                       @default(0) @map("latest_version_no")
-  isBuiltIn       Boolean                   @default(false) @map("is_built_in")
-  isEnabled       Boolean                   @default(true) @map("is_enabled")
-  sortOrder       Int                       @default(0) @map("sort_order")
-  tagsJson        Json?                     @map("tags_json")
-  createdAt       DateTime                  @default(now()) @map("created_at")
-  updatedAt       DateTime                  @updatedAt @map("updated_at")
-  user            AppUser?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
-  currentVersion  WorkflowDefinitionVersion? @relation("WorkflowDefinitionCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  versions        WorkflowDefinitionVersion[] @relation("WorkflowDefinitionVersions")
+  id               String                      @id @default(cuid()) @db.VarChar(36)
+  userId           String?                     @map("user_id") @db.VarChar(36)
+  code             String                      @unique(map: "uk_workflow_definitions_code") @db.VarChar(100)
+  name             String                      @db.VarChar(100)
+  description      String?                     @db.VarChar(255)
+  category         String?                     @db.VarChar(50)
+  scene            WorkflowScene               @default(WORKFLOW_CANVAS)
+  sourceType       WorkflowSourceType          @default(VISUAL) @map("source_type")
+  status           WorkflowDefinitionStatus    @default(DRAFT)
+  currentVersionId String?                     @map("current_version_id") @db.VarChar(36)
+  latestVersionNo  Int                         @default(0) @map("latest_version_no")
+  isBuiltIn        Boolean                     @default(false) @map("is_built_in")
+  isEnabled        Boolean                     @default(true) @map("is_enabled")
+  sortOrder        Int                         @default(0) @map("sort_order")
+  tagsJson         Json?                       @map("tags_json")
+  createdAt        DateTime                    @default(now()) @map("created_at")
+  updatedAt        DateTime                    @updatedAt @map("updated_at")
+  user             AppUser?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  currentVersion   WorkflowDefinitionVersion?  @relation("WorkflowDefinitionCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  versions         WorkflowDefinitionVersion[] @relation("WorkflowDefinitionVersions")
 
   @@index([userId, scene, status], map: "idx_workflow_definitions_user_scene_status")
   @@index([isEnabled, sortOrder], map: "idx_workflow_definitions_enabled_sort")
@@ -861,6 +863,70 @@ model RechargeOrder {
   @@map("recharge_orders")
 }
 
+/// 支付交易流水表。
+/// 记录支付渠道或本地沙箱确认事件，支付成功和权益发放分离，便于幂等与对账。
+model PaymentTransaction {
+  id                    String                   @id @default(cuid()) @db.VarChar(36)
+  userId                String                   @map("user_id") @db.VarChar(36)
+  orderType             CommercialOrderType      @map("order_type")
+  orderNo               String                   @map("order_no") @db.VarChar(64)
+  provider              String                   @default("LOCAL") @db.VarChar(32)
+  providerPaymentId     String?                  @map("provider_payment_id") @db.VarChar(128)
+  providerTransactionId String?                  @map("provider_transaction_id") @db.VarChar(128)
+  channel               PayChannelType
+  channelTransactionNo  String                   @map("channel_transaction_no") @db.VarChar(128)
+  idempotencyKey        String?                  @map("idempotency_key") @db.VarChar(128)
+  status                PaymentTransactionStatus @default(RECEIVED)
+  expectedAmount        Decimal                  @map("expected_amount") @db.Decimal(10, 2)
+  paidAmount            Decimal                  @map("paid_amount") @db.Decimal(10, 2)
+  currency              String                   @default("CNY") @db.VarChar(16)
+  verifiedAt            DateTime?                @map("verified_at")
+  paidAt                DateTime?                @map("paid_at")
+  failureReason         String?                  @map("failure_reason") @db.VarChar(255)
+  rawPayloadJson        Json?                    @map("raw_payload_json")
+  createdAt             DateTime                 @default(now()) @map("created_at")
+  updatedAt             DateTime                 @updatedAt @map("updated_at")
+  user                  AppUser                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  benefitGrants         BenefitGrant[]
+
+  @@unique([orderType, channel, channelTransactionNo], map: "uk_payment_transactions_channel_no")
+  @@unique([orderType, orderNo, idempotencyKey], map: "uk_payment_transactions_order_idempotency")
+  @@unique([provider, providerPaymentId], map: "uk_payment_transactions_provider_payment_id")
+  @@unique([provider, providerTransactionId], map: "uk_payment_transactions_provider_transaction_id")
+  @@index([userId, createdAt], map: "idx_payment_transactions_user_created_at")
+  @@index([provider, orderType, orderNo], map: "idx_payment_transactions_provider_order")
+  @@index([orderType, orderNo, status], map: "idx_payment_transactions_order_status")
+  @@map("payment_transactions")
+}
+
+/// 权益发放记录表。
+/// 每一种订单权益只允许成功发放一次，用于防重复回调、客服追责和财务对账。
+model BenefitGrant {
+  id                   String              @id @default(cuid()) @db.VarChar(36)
+  userId               String              @map("user_id") @db.VarChar(36)
+  orderType            CommercialOrderType @map("order_type")
+  orderNo              String              @map("order_no") @db.VarChar(64)
+  grantType            BenefitGrantType    @map("grant_type")
+  status               BenefitGrantStatus  @default(PENDING)
+  benefitId            String?             @map("benefit_id") @db.VarChar(64)
+  paymentTransactionId String?             @map("payment_transaction_id") @db.VarChar(36)
+  amount               Int                 @default(0)
+  reason               String?             @db.VarChar(255)
+  metaJson             Json?               @map("meta_json")
+  grantedAt            DateTime?           @map("granted_at")
+  revokedAt            DateTime?           @map("revoked_at")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+  user                 AppUser             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentTransaction   PaymentTransaction? @relation(fields: [paymentTransactionId], references: [id], onDelete: SetNull)
+
+  @@unique([orderType, orderNo, grantType], map: "uk_benefit_grants_order_type")
+  @@index([userId, createdAt], map: "idx_benefit_grants_user_created_at")
+  @@index([paymentTransactionId], map: "idx_benefit_grants_payment_transaction_id")
+  @@index([orderType, orderNo, status], map: "idx_benefit_grants_order_status")
+  @@map("benefit_grants")
+}
+
 /// 卡密批次表。
 /// 一次批量生成的卡密集合，可绑定积分奖励或会员奖励。
 model CardBatch {
@@ -943,6 +1009,7 @@ model PointAccountLog {
   subscriptionId  String?           @map("subscription_id") @db.VarChar(36)
   rechargeOrderId String?           @map("recharge_order_id") @db.VarChar(36)
   accountNo       String            @unique(map: "uk_point_account_logs_account_no") @map("account_no") @db.VarChar(64)
+  idempotencyKey  String?           @unique(map: "uk_point_account_logs_idempotency_key") @map("idempotency_key") @db.VarChar(128)
   changeType      PointChangeType   @map("change_type")
   action          PointActionType   @map("action")
   changeAmount    Int               @map("change_amount")
@@ -1242,9 +1309,14 @@ enum MembershipOrderSource {
 
 enum MembershipOrderStatus {
   PENDING
+  PAYING
   PAID
+  BENEFIT_GRANTED
   CANCELED
+  FAILED
+  REFUNDING
   REFUNDED
+  PARTIAL_REFUNDED
   CLOSED
 }
 
@@ -1257,9 +1329,40 @@ enum PayChannelType {
 
 enum PaymentStatus {
   PENDING
+  PAYING
   PAID
+  BENEFIT_GRANTED
   FAILED
   CANCELED
+  CLOSED
+  REFUNDING
+  REFUNDED
+  PARTIAL_REFUNDED
+}
+
+enum CommercialOrderType {
+  MEMBERSHIP
+  RECHARGE
+}
+
+enum PaymentTransactionStatus {
+  RECEIVED
+  INTENT_CREATED
+  VERIFIED
+  REJECTED
+}
+
+enum BenefitGrantType {
+  MEMBERSHIP
+  POINTS
+  MEMBERSHIP_BONUS_POINTS
+}
+
+enum BenefitGrantStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REVOKED
 }
 
 enum RefundStatus {

@@ -101,14 +101,26 @@ export const redeemMarketingCardCode = (code: string) => requestJson('/api/marke
   body: JSON.stringify({ code }),
 }, '卡密兑换成功')
 
-// 开通会员。
+// 创建会员订单；真实权益必须等待支付确认后由服务端发放。
 export const createMarketingMembershipOrder = (planId: string) => requestJson('/api/marketing/membership-orders', {
   method: 'POST',
   body: JSON.stringify({ planId }),
-}, '会员已开通')
+}, '会员订单已创建')
 
-// 充值积分。
+// 创建充值订单；积分必须等待支付确认后由服务端入账。
 export const createMarketingRechargeOrder = (rechargePackageId: string) => requestJson('/api/marketing/recharge-orders', {
   method: 'POST',
   body: JSON.stringify({ rechargePackageId }),
-}, '充值已到账')
+}, '充值订单已创建')
+
+// 本地支付确认，仅用于开发/测试 no-call 验证，生产环境服务端会拒绝。
+export const confirmMarketingLocalPayment = (payload: {
+  orderType: 'MEMBERSHIP' | 'RECHARGE'
+  orderNo: string
+  paidAmount?: number | string
+  idempotencyKey?: string
+  channelTransactionNo?: string
+}) => requestJson('/api/marketing/payment-confirm-local', {
+  method: 'POST',
+  body: JSON.stringify(payload),
+}, '本地支付确认已处理')

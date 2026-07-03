@@ -26,5 +26,6 @@ export const redisKeys = {
   taskEventChannel: (recordId: string) => buildNamespaceKey('task', 'event', recordId),
   taskEventReplay: (recordId: string) => buildNamespaceKey('task', 'event-replay', recordId),
   taskEventCounter: (recordId: string) => buildNamespaceKey('task', 'event-counter', recordId),
+  commercialOrderLock: (orderType: string, orderNo: string) => buildNamespaceKey('commercial', 'order-lock', orderType, orderNo),
   rateLimit: (scope: string, identifier: string) => buildNamespaceKey('rate', scope, identifier),
 }

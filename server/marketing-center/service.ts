@@ -1,7 +1,11 @@
 import prisma from '../db/prisma'
+import { runPrismaTransactionWithRetry } from '../db/retry'
 import { invalidateRedisCachePatterns, invalidateRedisCaches } from '../redis/cache-manager'
 import { getOrSetJsonCache } from '../redis/json-cache'
+import { REDIS_CONFIG, isRedisEnabled } from '../redis/config'
+import { acquireRedisLock, releaseRedisLock, type RedisLockHandle } from '../redis/lock'
 import { redisKeys } from '../redis/keys'
+import { resolvePaymentProvider } from './payment/provider-registry'
 import {
   applyCapabilityFlags,
   type ModelCapabilityFlags,
@@ -198,8 +202,19 @@ const appendPointLog = async (tx: any, input: {
   subscriptionId?: string | null
   associationNo?: string | null
   remark?: string | null
+  idempotencyKey?: string | null
   metaJson?: unknown
 }) => {
+  const idempotencyKey = String(input.idempotencyKey || '').trim() || null
+  if (idempotencyKey) {
+    const existing = await tx.pointAccountLog.findFirst({
+      where: { idempotencyKey },
+    })
+    if (existing) {
+      return existing
+    }
+  }
+
   const currentBalance = await readCurrentPointBalance(input.userId, tx)
   const nextBalance = input.action === 'DECREASE'
     ? currentBalance - Math.abs(input.changeAmount)
@@ -220,6 +235,7 @@ const appendPointLog = async (tx: any, input: {
       sourceId: input.sourceId || null,
       associationNo: input.associationNo || null,
       remark: input.remark || null,
+      idempotencyKey,
       metaJson: (input.metaJson ?? null) as any,
     },
   })
@@ -320,7 +336,7 @@ export const consumeGenerationPoints = async (input: {
     return null
   }
 
-  return prisma.$transaction(async (tx) => {
+  return runPrismaTransactionWithRetry(async (tx) => {
     // 行锁优先：锁住用户主表行，串行化该用户的积分账本写入。
     await lockUserBillingRow(tx, input.userId)
 
@@ -360,6 +376,8 @@ export const consumeGenerationPoints = async (input: {
           : {}),
       },
     })
+  }, {
+    operationName: 'consume_generation_points',
   })
 }
 
@@ -380,7 +398,7 @@ export const refundGenerationPoints = async (input: {
     return null
   }
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await runPrismaTransactionWithRetry(async (tx) => {
     // 退款也走行锁：避免与并发扣点交错，让账本写入按事务严格串行。
     await lockUserBillingRow(tx, input.userId)
 
@@ -407,6 +425,8 @@ export const refundGenerationPoints = async (input: {
           : {}),
       },
     })
+  }, {
+    operationName: 'refund_generation_points',
   })
 
   await invalidateMarketingCenterOverviewCache(input.userId)
@@ -637,6 +657,215 @@ const grantRewardByTrigger = async (tx: any, input: {
   return results
 }
 
+type CommercialOrderTypeValue = 'MEMBERSHIP' | 'RECHARGE'
+type LocalPaymentConfirmInput = {
+  orderType: CommercialOrderTypeValue | string
+  orderNo: string
+  paidAmount?: number | string
+  idempotencyKey?: string
+  channelTransactionNo?: string
+  provider?: string
+  providerPaymentId?: string
+  providerTransactionId?: string
+  channel?: 'ALIPAY' | 'WECHAT' | 'MANUAL' | 'OTHER'
+  paidAt?: Date | string | null
+  rawPayload?: unknown
+}
+
+const isLocalPaymentSimulationEnabled = () => {
+  if (process.env.NODE_ENV === 'production') {
+    return false
+  }
+
+  return ['1', 'true', 'yes', 'on'].includes(String(process.env.ENABLE_LOCAL_PAYMENT_SIMULATION || '').trim().toLowerCase())
+}
+
+const normalizeCommercialOrderType = (value: unknown): CommercialOrderTypeValue => {
+  const normalizedValue = String(value || '').trim().toUpperCase()
+  if (normalizedValue === 'MEMBERSHIP' || normalizedValue === 'RECHARGE') {
+    return normalizedValue
+  }
+
+  throw new Error('订单类型不支持')
+}
+
+const normalizeOrderNo = (value: unknown) => {
+  const orderNo = String(value || '').trim().toUpperCase()
+  if (!orderNo) {
+    throw new Error('订单号不能为空')
+  }
+
+  return orderNo
+}
+
+const toAmountNumber = (value: unknown) => {
+  if (value && typeof value === 'object' && typeof (value as { toString?: () => string }).toString === 'function') {
+    return Number((value as { toString: () => string }).toString())
+  }
+
+  return Number(value || 0)
+}
+
+const toAmountCents = (value: unknown) => Math.round(toAmountNumber(value) * 100)
+
+const normalizePositiveAmount = (value: unknown, fallback: unknown) => {
+  const amount = value === undefined || value === null || String(value).trim() === ''
+    ? toAmountNumber(fallback)
+    : Number(value)
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new Error('支付金额不合法')
+  }
+
+  return amount
+}
+
+const assertPaymentAmountMatches = (expectedAmount: unknown, paidAmount: unknown) => {
+  if (toAmountCents(expectedAmount) !== toAmountCents(paidAmount)) {
+    throw new Error(`支付金额不一致，订单应付 ${toAmountNumber(expectedAmount).toFixed(2)}，实际支付 ${toAmountNumber(paidAmount).toFixed(2)}`)
+  }
+}
+
+const SENSITIVE_PAYMENT_PAYLOAD_KEY_PATTERN = /(secret|token|password|cookie|authorization|signature|sign|api[-_]?key|access[-_]?key|private[-_]?key|credential)/i
+
+const sanitizePaymentRawPayload = (value: unknown, depth = 0): unknown => {
+  if (depth > 8) {
+    return '[REDACTED:DEPTH_LIMIT]'
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizePaymentRawPayload(item, depth + 1))
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, item]) => {
+      if (SENSITIVE_PAYMENT_PAYLOAD_KEY_PATTERN.test(key)) {
+        return [key, '[REDACTED]']
+      }
+
+      return [key, sanitizePaymentRawPayload(item, depth + 1)]
+    }),
+  )
+}
+
+const recordPaymentTransaction = async (tx: any, input: {
+  userId: string
+  orderType: CommercialOrderTypeValue
+  orderNo: string
+  expectedAmount: unknown
+  paidAmount: number
+  idempotencyKey?: string
+  channelTransactionNo?: string
+  provider?: string
+  providerPaymentId?: string
+  providerTransactionId?: string
+  channel?: 'ALIPAY' | 'WECHAT' | 'MANUAL' | 'OTHER'
+  status: 'INTENT_CREATED' | 'VERIFIED' | 'REJECTED'
+  paidAt?: Date | string | null
+  failureReason?: string
+  rawPayload?: unknown
+}) => {
+  const idempotencyKey = String(input.idempotencyKey || '').trim() || null
+  const provider = String(input.provider || 'LOCAL').trim().toUpperCase()
+  const providerPaymentId = String(input.providerPaymentId || '').trim() || null
+  const providerTransactionId = String(input.providerTransactionId || '').trim() || null
+  const channelTransactionNo = String(input.channelTransactionNo || '').trim()
+    || providerTransactionId
+    || providerPaymentId
+    || `${provider}-${input.orderType}-${input.orderNo}-${idempotencyKey || 'NO-IDEMPOTENCY'}`
+  const paidAt = input.paidAt
+    ? input.paidAt instanceof Date
+      ? input.paidAt
+      : new Date(input.paidAt)
+    : null
+
+  if (idempotencyKey) {
+    const existing = await tx.paymentTransaction.findFirst({
+      where: {
+        orderType: input.orderType,
+        orderNo: input.orderNo,
+        idempotencyKey,
+      },
+    })
+    if (existing) {
+      return existing
+    }
+  }
+
+  return tx.paymentTransaction.create({
+    data: {
+      userId: input.userId,
+      orderType: input.orderType,
+      orderNo: input.orderNo,
+      provider,
+      providerPaymentId,
+      providerTransactionId,
+      channel: input.channel || 'MANUAL',
+      channelTransactionNo,
+      idempotencyKey,
+      status: input.status,
+      expectedAmount: input.expectedAmount,
+      paidAmount: input.paidAmount,
+      currency: 'CNY',
+      verifiedAt: input.status === 'VERIFIED' ? new Date() : null,
+      paidAt: input.status === 'VERIFIED' ? (paidAt && !Number.isNaN(paidAt.getTime()) ? paidAt : new Date()) : null,
+      failureReason: input.failureReason || null,
+      rawPayloadJson: sanitizePaymentRawPayload(input.rawPayload ?? null) as any,
+    },
+  })
+}
+
+const createSuccessfulBenefitGrant = async (tx: any, input: {
+  userId: string
+  orderType: CommercialOrderTypeValue
+  orderNo: string
+  grantType: 'MEMBERSHIP' | 'POINTS' | 'MEMBERSHIP_BONUS_POINTS'
+  benefitId?: string | null
+  paymentTransactionId?: string | null
+  amount?: number
+  reason: string
+  metaJson?: unknown
+}) => {
+  const existing = await tx.benefitGrant.findFirst({
+    where: {
+      orderType: input.orderType,
+      orderNo: input.orderNo,
+      grantType: input.grantType,
+    },
+  })
+
+  if (existing?.status === 'SUCCESS') {
+    return existing
+  }
+
+  const data = {
+    userId: input.userId,
+    orderType: input.orderType,
+    orderNo: input.orderNo,
+    grantType: input.grantType,
+    status: 'SUCCESS',
+    benefitId: input.benefitId || null,
+    paymentTransactionId: input.paymentTransactionId || null,
+    amount: Math.max(0, Number(input.amount || 0)),
+    reason: input.reason,
+    metaJson: (input.metaJson ?? null) as any,
+    grantedAt: new Date(),
+  }
+
+  if (existing) {
+    return tx.benefitGrant.update({
+      where: { id: existing.id },
+      data,
+    })
+  }
+
+  return tx.benefitGrant.create({ data })
+}
+
 // 用户登录成功后触发每日登录奖励。
 export const grantLoginReward = async (userId: string) => {
   const result = await prisma.$transaction(async (tx) => {
@@ -831,7 +1060,7 @@ export const performUserCheckin = async (userId: string) => {
 
 // 用户购买会员计划。
 export const createMembershipPurchaseOrder = async (userId: string, selectedPlanId: string) => {
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await runPrismaTransactionWithRetry(async (tx) => {
     const selection = parsePlanPurchaseSelection(selectedPlanId)
     const plan = await tx.membershipPlan.findFirst({
       where: { id: selection.planId, isEnabled: true },
@@ -849,7 +1078,6 @@ export const createMembershipPurchaseOrder = async (userId: string, selectedPlan
       throw new Error('当前会员计费规则不存在或已停用')
     }
 
-    const now = new Date()
     const order = await tx.membershipOrder.create({
       data: {
         userId,
@@ -857,49 +1085,41 @@ export const createMembershipPurchaseOrder = async (userId: string, selectedPlan
         planId: plan.id,
         orderNo: buildSerialNo('VIP'),
         sourceType: 'DIRECT_PURCHASE',
-        status: 'PAID',
+        status: 'PENDING',
         totalAmount: matchedBillingRule.salesPrice,
-        paidAmount: matchedBillingRule.salesPrice,
+        paidAmount: 0,
         bonusPoints: plan.bonusPoints,
-        startTime: now,
-        endTime: addDuration(now, plan.durationUnit, plan.durationValue),
-        paidAt: now,
+        startTime: null,
+        endTime: null,
+        paidAt: null,
         metaJson: {
           planName: plan.name,
+          planLabel: plan.label,
           durationType: plan.durationType,
           durationValue: plan.durationValue,
           durationUnit: plan.durationUnit,
           billingLevelId: matchedBillingRule.levelId,
           billingLabel: matchedBillingRule.label,
+          salesPrice: matchedBillingRule.salesPrice,
+          originalPrice: matchedBillingRule.originalPrice,
+          bonusPoints: plan.bonusPoints,
+          benefits: planConfig.benefits,
+          createdForPayment: true,
         },
       },
     })
 
-    const subscription = await activateMembership(tx, {
-      userId,
-      levelId: matchedBillingRule.levelId,
-      sourceType: 'DIRECT_PURCHASE',
-      sourceId: order.id,
-      startTime: now,
-      durationUnit: plan.durationUnit,
-      durationValue: plan.durationValue,
-      bonusPoints: plan.bonusPoints,
-      metaJson: { orderNo: order.orderNo, planId: plan.id, levelId: matchedBillingRule.levelId },
-    })
-
-    await tx.membershipOrder.update({
-      where: { id: order.id },
-      data: {
-        startTime: subscription.startTime,
-        endTime: subscription.endTime,
+    return serializeMarketingCenterRecord({
+      order,
+      subscription: null,
+      currentBalance: await readCurrentPointBalance(userId, tx),
+      payment: {
+        status: 'PENDING',
+        willCallProvider: false,
       },
     })
-
-    return serializeMarketingCenterRecord({
-      order: await tx.membershipOrder.findUnique({ where: { id: order.id } }),
-      subscription,
-      currentBalance: await readCurrentPointBalance(userId, tx),
-    })
+  }, {
+    operationName: 'create_membership_purchase_order',
   })
 
   await invalidateMarketingCenterOverviewCache(userId)
@@ -908,7 +1128,7 @@ export const createMembershipPurchaseOrder = async (userId: string, selectedPlan
 
 // 用户创建充值订单并立即入账。
 export const createRechargePurchaseOrder = async (userId: string, rechargePackageId: string) => {
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await runPrismaTransactionWithRetry(async (tx) => {
     const rechargePackage = await tx.rechargePackage.findFirst({
       where: { id: rechargePackageId, isEnabled: true },
     })
@@ -916,49 +1136,41 @@ export const createRechargePurchaseOrder = async (userId: string, rechargePackag
       throw new Error('充值套餐不存在或已下架')
     }
 
-    const totalPoints = (rechargePackage.points || 0) + (rechargePackage.bonusPoints || 0)
-    const now = new Date()
     const order = await tx.rechargeOrder.create({
       data: {
         userId,
         rechargePackageId: rechargePackage.id,
         orderNo: buildSerialNo('RCH'),
         payChannel: 'MANUAL',
-        payStatus: 'PAID',
+        payStatus: 'PENDING',
         refundStatus: 'NONE',
         points: rechargePackage.points,
         bonusPoints: rechargePackage.bonusPoints,
         totalAmount: rechargePackage.price,
-        paidAmount: rechargePackage.price,
+        paidAmount: 0,
         packageSnapshotJson: {
           name: rechargePackage.name,
           label: rechargePackage.label,
           price: rechargePackage.price,
+          originalPrice: rechargePackage.originalPrice,
+          points: rechargePackage.points,
+          bonusPoints: rechargePackage.bonusPoints,
+          createdForPayment: true,
         },
-        paidAt: now,
-      },
-    })
-
-    await appendPointLog(tx, {
-      userId,
-      rechargeOrderId: order.id,
-      changeType: 'RECHARGE',
-      action: 'INCREASE',
-      changeAmount: totalPoints,
-      sourceType: 'RECHARGE_ORDER',
-      sourceId: order.id,
-      associationNo: order.orderNo,
-      remark: '积分充值到账',
-      metaJson: {
-        points: rechargePackage.points,
-        bonusPoints: rechargePackage.bonusPoints,
+        paidAt: null,
       },
     })
 
     return serializeMarketingCenterRecord({
       order,
       currentBalance: await readCurrentPointBalance(userId, tx),
+      payment: {
+        status: 'PENDING',
+        willCallProvider: false,
+      },
     })
+  }, {
+    operationName: 'create_recharge_purchase_order',
   })
 
   await invalidateMarketingCenterOverviewCache(userId)
@@ -966,6 +1178,571 @@ export const createRechargePurchaseOrder = async (userId: string, rechargePackag
 }
 
 // 用户兑换卡密。
+type PaymentIntentCreateInput = {
+  orderType: CommercialOrderTypeValue | string
+  orderNo: string
+  provider?: string
+  paymentChannel?: string
+  clientIp?: string | null
+  returnUrl?: string | null
+  notifyUrl?: string | null
+}
+
+type PaymentWebhookHandleInput = {
+  provider?: string
+  headers?: Record<string, string | string[] | undefined>
+  rawBody?: string
+  parsedBody?: unknown
+}
+
+const normalizePaymentChannel = (value: unknown) => {
+  const channel = String(value || 'MOCK').trim().toUpperCase()
+  if (!/^[A-Z0-9_-]{1,32}$/.test(channel)) {
+    throw new Error('payment channel is invalid')
+  }
+  return channel
+}
+
+const readOrderForPayment = async (tx: any, orderType: CommercialOrderTypeValue, orderNo: string, includePlan = false) => {
+  if (orderType === 'MEMBERSHIP') {
+    return tx.membershipOrder.findUnique({
+      where: { orderNo },
+      include: includePlan ? { plan: true } : undefined,
+    })
+  }
+
+  return tx.rechargeOrder.findUnique({
+    where: { orderNo },
+  })
+}
+
+const lockPaymentOrderRow = async (tx: any, orderType: CommercialOrderTypeValue, orderNo: string) => {
+  if (orderType === 'MEMBERSHIP') {
+    await tx.$queryRaw`SELECT id FROM membership_orders WHERE order_no = ${orderNo} FOR UPDATE`
+    return
+  }
+
+  await tx.$queryRaw`SELECT id FROM recharge_orders WHERE order_no = ${orderNo} FOR UPDATE`
+}
+
+const getOrderPaymentStatus = (orderType: CommercialOrderTypeValue, order: any) => {
+  return String(orderType === 'MEMBERSHIP' ? order.status : order.payStatus)
+}
+
+const updateOrderPaymentStatus = async (tx: any, orderType: CommercialOrderTypeValue, orderId: string, status: 'PAYING') => {
+  if (orderType === 'MEMBERSHIP') {
+    return tx.membershipOrder.update({
+      where: { id: orderId },
+      data: { status },
+    })
+  }
+
+  return tx.rechargeOrder.update({
+    where: { id: orderId },
+    data: {
+      payStatus: status,
+      payChannel: 'OTHER',
+    },
+  })
+}
+
+const assertOrderCanCreatePaymentIntent = (orderType: CommercialOrderTypeValue, order: any, userId: string) => {
+  if (!order || order.userId !== userId) {
+    throw new Error('payment order not found')
+  }
+
+  const status = getOrderPaymentStatus(orderType, order)
+  if (status !== 'PENDING' && status !== 'PAYING') {
+    throw new Error(`payment order status does not allow intent creation: ${status}`)
+  }
+}
+
+const createPaymentIntentInTransaction = async (tx: any, userId: string, payload: PaymentIntentCreateInput) => {
+  const orderType = normalizeCommercialOrderType(payload.orderType)
+  const orderNo = normalizeOrderNo(payload.orderNo)
+  const paymentChannel = normalizePaymentChannel(payload.paymentChannel)
+  const provider = resolvePaymentProvider(payload.provider || 'MOCK')
+
+  await lockPaymentOrderRow(tx, orderType, orderNo)
+  const order = await readOrderForPayment(tx, orderType, orderNo)
+  assertOrderCanCreatePaymentIntent(orderType, order, userId)
+
+  const amount = toAmountNumber(order.totalAmount)
+  const intent = await provider.createPaymentIntent({
+    orderId: order.id,
+    orderType,
+    orderNo: order.orderNo,
+    userId,
+    amount,
+    currency: 'CNY',
+    subject: orderType === 'MEMBERSHIP' ? `Membership order ${order.orderNo}` : `Recharge order ${order.orderNo}`,
+    paymentChannel,
+    clientIp: payload.clientIp || null,
+    returnUrl: payload.returnUrl || null,
+    notifyUrl: payload.notifyUrl || null,
+  })
+
+  const paymentTransaction = await recordPaymentTransaction(tx, {
+    userId,
+    orderType,
+    orderNo: order.orderNo,
+    expectedAmount: order.totalAmount,
+    paidAmount: 0,
+    idempotencyKey: `INTENT-${intent.provider}-${orderType}-${order.orderNo}`,
+    channelTransactionNo: `INTENT-${intent.providerPaymentId}`,
+    provider: intent.provider,
+    providerPaymentId: intent.providerPaymentId,
+    providerTransactionId: undefined,
+    channel: 'OTHER',
+    status: 'INTENT_CREATED',
+    rawPayload: intent.rawPayloadJson,
+  })
+
+  const updatedOrder = getOrderPaymentStatus(orderType, order) === 'PAYING'
+    ? order
+    : await updateOrderPaymentStatus(tx, orderType, order.id, 'PAYING')
+
+  return serializeMarketingCenterRecord({
+    order: updatedOrder,
+    paymentIntent: intent,
+    paymentTransaction,
+  })
+}
+
+export const createMarketingPaymentIntent = async (userId: string, payload: PaymentIntentCreateInput) => {
+  const result = await runPrismaTransactionWithRetry((tx) => createPaymentIntentInTransaction(tx, userId, payload), {
+    operationName: 'create_marketing_payment_intent',
+  })
+  await invalidateMarketingCenterOverviewCache(userId)
+  return result
+}
+
+const parseWebhookBody = (payload: PaymentWebhookHandleInput) => {
+  if (payload.parsedBody !== undefined) {
+    return payload.parsedBody
+  }
+  const rawBody = String(payload.rawBody || '').trim()
+  return rawBody ? JSON.parse(rawBody) : {}
+}
+
+const assertWebhookOrderMatches = (order: any, event: any) => {
+  if (!order) {
+    throw new Error('payment webhook order not found')
+  }
+  if (String(order.id) !== String(event.orderId)) {
+    throw new Error('payment webhook order id mismatch')
+  }
+  if (event.userId && String(order.userId) !== String(event.userId)) {
+    throw new Error('payment webhook user id mismatch')
+  }
+}
+
+const processPaymentWebhookEventInTransaction = async (tx: any, event: any) => {
+  const orderType = normalizeCommercialOrderType(event.orderType)
+  const orderNo = normalizeOrderNo(event.orderNo)
+  const order = await readOrderForPayment(tx, orderType, orderNo, orderType === 'MEMBERSHIP')
+  assertWebhookOrderMatches(order, event)
+
+  if (event.status !== 'PAID') {
+    return serializeMarketingCenterRecord({
+      order,
+      ignored: true,
+      status: event.status,
+    })
+  }
+
+  if (getOrderPaymentStatus(orderType, order) === 'BENEFIT_GRANTED') {
+    return serializeMarketingCenterRecord({
+      order,
+      alreadyGranted: true,
+      currentBalance: await readCurrentPointBalance(order.userId, tx),
+    })
+  }
+
+  const input = {
+    orderType,
+    orderNo,
+    paidAmount: event.amount,
+    idempotencyKey: event.idempotencyKey,
+    channelTransactionNo: event.providerTransactionId,
+    provider: event.provider,
+    providerPaymentId: event.providerPaymentId,
+    providerTransactionId: event.providerTransactionId,
+    channel: 'OTHER' as const,
+    paidAt: event.paidAt,
+    rawPayload: event.rawPayloadJson,
+  }
+
+  if (orderType === 'MEMBERSHIP') {
+    return confirmMembershipPaymentInTransaction(tx, order.userId, input)
+  }
+  return confirmRechargePaymentInTransaction(tx, order.userId, input)
+}
+
+export const handleMarketingPaymentWebhook = async (payload: PaymentWebhookHandleInput) => {
+  const provider = resolvePaymentProvider(payload.provider || 'MOCK')
+  const parsedBody = parseWebhookBody(payload)
+  const verifyInput = {
+    headers: payload.headers || {},
+    rawBody: payload.rawBody || JSON.stringify(parsedBody),
+    parsedBody,
+  }
+  const verified = await provider.verifyWebhookSignature(verifyInput)
+  if (!verified) {
+    throw new Error('payment webhook signature verification failed')
+  }
+
+  const event = await provider.parseWebhookEvent(verifyInput)
+  const lock = await acquireRedisLock(redisKeys.commercialOrderLock(event.orderType, event.orderNo), REDIS_CONFIG.taskLockTtlMs)
+  if (isRedisEnabled() && !lock) {
+    throw new Error('payment webhook is already locked')
+  }
+
+  try {
+    const result = await runPrismaTransactionWithRetry(async (tx) => {
+      return processPaymentWebhookEventInTransaction(tx, event)
+    }, {
+      operationName: 'handle_marketing_payment_webhook',
+    })
+
+    await invalidateMarketingCenterOverviewCache(event.userId || null)
+    return result
+  } finally {
+    await releaseRedisLock(lock)
+  }
+}
+
+const confirmMembershipPaymentInTransaction = async (tx: any, userId: string, input: LocalPaymentConfirmInput) => {
+  await tx.$queryRaw`SELECT id FROM membership_orders WHERE order_no = ${input.orderNo} FOR UPDATE`
+  const order = await tx.membershipOrder.findUnique({
+    where: { orderNo: input.orderNo },
+    include: { plan: true },
+  })
+
+  if (!order || order.userId !== userId) {
+    throw new Error('会员订单不存在')
+  }
+
+  if (order.status === 'BENEFIT_GRANTED') {
+    return serializeMarketingCenterRecord({
+      order,
+      alreadyGranted: true,
+      currentBalance: await readCurrentPointBalance(userId, tx),
+    })
+  }
+
+  if (!['PENDING', 'PAYING', 'PAID'].includes(String(order.status))) {
+    throw new Error(`会员订单当前状态不允许确认支付: ${order.status}`)
+  }
+
+  const paidAmount = normalizePositiveAmount(input.paidAmount, order.totalAmount)
+  try {
+    assertPaymentAmountMatches(order.totalAmount, paidAmount)
+  } catch (error: any) {
+    await recordPaymentTransaction(tx, {
+      userId,
+      orderType: 'MEMBERSHIP',
+      orderNo: order.orderNo,
+      expectedAmount: order.totalAmount,
+      paidAmount,
+      idempotencyKey: input.idempotencyKey,
+      channelTransactionNo: input.channelTransactionNo,
+      provider: input.provider,
+      providerPaymentId: input.providerPaymentId,
+      providerTransactionId: input.providerTransactionId,
+      channel: input.channel,
+      status: 'REJECTED',
+      paidAt: input.paidAt,
+      failureReason: error?.message || '支付金额不一致',
+      rawPayload: input.rawPayload,
+    })
+    throw error
+  }
+
+  const paymentTransaction = await recordPaymentTransaction(tx, {
+    userId,
+    orderType: 'MEMBERSHIP',
+    orderNo: order.orderNo,
+    expectedAmount: order.totalAmount,
+    paidAmount,
+    idempotencyKey: input.idempotencyKey,
+    channelTransactionNo: input.channelTransactionNo,
+    provider: input.provider,
+    providerPaymentId: input.providerPaymentId,
+    providerTransactionId: input.providerTransactionId,
+    channel: input.channel,
+    status: 'VERIFIED',
+    paidAt: input.paidAt,
+    rawPayload: input.rawPayload,
+  })
+
+  const paidAt = new Date()
+  await tx.membershipOrder.update({
+    where: { id: order.id },
+    data: {
+      status: 'PAID',
+      paidAmount,
+      paidAt,
+    },
+  })
+
+  const subscription = await activateMembership(tx, {
+    userId,
+    levelId: order.levelId,
+    sourceType: order.sourceType,
+    sourceId: order.id,
+    startTime: paidAt,
+    durationUnit: order.plan?.durationUnit || 'month',
+    durationValue: order.plan?.durationValue || 1,
+    bonusPoints: 0,
+    metaJson: {
+      orderNo: order.orderNo,
+      planId: order.planId,
+      paymentTransactionId: paymentTransaction.id,
+    },
+  })
+
+  const membershipGrant = await createSuccessfulBenefitGrant(tx, {
+    userId,
+    orderType: 'MEMBERSHIP',
+    orderNo: order.orderNo,
+    grantType: 'MEMBERSHIP',
+    benefitId: subscription.id,
+    paymentTransactionId: paymentTransaction.id,
+    amount: 1,
+    reason: '会员订单支付确认后发放会员权益',
+    metaJson: {
+      subscriptionId: subscription.id,
+      levelId: order.levelId,
+      paymentTransactionId: paymentTransaction.id,
+    },
+  })
+
+  let bonusPointLog = null
+  let bonusPointGrant = null
+  if ((order.bonusPoints || 0) > 0) {
+    bonusPointLog = await appendPointLog(tx, {
+      userId,
+      subscriptionId: subscription.id,
+      changeType: 'MEMBERSHIP_BONUS',
+      action: 'INCREASE',
+      changeAmount: order.bonusPoints,
+      sourceType: 'MEMBERSHIP_ORDER',
+      sourceId: order.id,
+      associationNo: order.orderNo,
+      idempotencyKey: `POINT-MEMBERSHIP-BONUS-${order.orderNo}`,
+      remark: '会员订单赠送积分到账',
+      metaJson: {
+        orderNo: order.orderNo,
+        paymentTransactionId: paymentTransaction.id,
+      },
+    })
+
+    bonusPointGrant = await createSuccessfulBenefitGrant(tx, {
+      userId,
+      orderType: 'MEMBERSHIP',
+      orderNo: order.orderNo,
+      grantType: 'MEMBERSHIP_BONUS_POINTS',
+      benefitId: bonusPointLog.id,
+      paymentTransactionId: paymentTransaction.id,
+      amount: order.bonusPoints,
+      reason: '会员订单支付确认后发放赠送积分',
+      metaJson: {
+        pointLogId: bonusPointLog.id,
+        paymentTransactionId: paymentTransaction.id,
+      },
+    })
+  }
+
+  const updatedOrder = await tx.membershipOrder.update({
+    where: { id: order.id },
+    data: {
+      status: 'BENEFIT_GRANTED',
+      startTime: subscription.startTime,
+      endTime: subscription.endTime,
+    },
+  })
+
+  return serializeMarketingCenterRecord({
+    order: updatedOrder,
+    subscription,
+    paymentTransaction,
+    benefitGrants: [membershipGrant, bonusPointGrant].filter(Boolean),
+    pointLog: bonusPointLog,
+    currentBalance: await readCurrentPointBalance(userId, tx),
+  })
+}
+
+const confirmRechargePaymentInTransaction = async (tx: any, userId: string, input: LocalPaymentConfirmInput) => {
+  await tx.$queryRaw`SELECT id FROM recharge_orders WHERE order_no = ${input.orderNo} FOR UPDATE`
+  const order = await tx.rechargeOrder.findUnique({
+    where: { orderNo: input.orderNo },
+  })
+
+  if (!order || order.userId !== userId) {
+    throw new Error('充值订单不存在')
+  }
+
+  if (order.payStatus === 'BENEFIT_GRANTED') {
+    return serializeMarketingCenterRecord({
+      order,
+      alreadyGranted: true,
+      currentBalance: await readCurrentPointBalance(userId, tx),
+    })
+  }
+
+  if (!['PENDING', 'PAYING', 'PAID'].includes(String(order.payStatus))) {
+    throw new Error(`充值订单当前状态不允许确认支付: ${order.payStatus}`)
+  }
+
+  const paidAmount = normalizePositiveAmount(input.paidAmount, order.totalAmount)
+  try {
+    assertPaymentAmountMatches(order.totalAmount, paidAmount)
+  } catch (error: any) {
+    await recordPaymentTransaction(tx, {
+      userId,
+      orderType: 'RECHARGE',
+      orderNo: order.orderNo,
+      expectedAmount: order.totalAmount,
+      paidAmount,
+      idempotencyKey: input.idempotencyKey,
+      channelTransactionNo: input.channelTransactionNo,
+      provider: input.provider,
+      providerPaymentId: input.providerPaymentId,
+      providerTransactionId: input.providerTransactionId,
+      channel: input.channel,
+      status: 'REJECTED',
+      paidAt: input.paidAt,
+      failureReason: error?.message || '支付金额不一致',
+      rawPayload: input.rawPayload,
+    })
+    throw error
+  }
+
+  const paymentTransaction = await recordPaymentTransaction(tx, {
+    userId,
+    orderType: 'RECHARGE',
+    orderNo: order.orderNo,
+    expectedAmount: order.totalAmount,
+    paidAmount,
+    idempotencyKey: input.idempotencyKey,
+    channelTransactionNo: input.channelTransactionNo,
+    provider: input.provider,
+    providerPaymentId: input.providerPaymentId,
+    providerTransactionId: input.providerTransactionId,
+    channel: input.channel,
+    status: 'VERIFIED',
+    paidAt: input.paidAt,
+    rawPayload: input.rawPayload,
+  })
+
+  const totalPoints = (order.points || 0) + (order.bonusPoints || 0)
+  const pointLog = await appendPointLog(tx, {
+    userId,
+    rechargeOrderId: order.id,
+    changeType: 'RECHARGE',
+    action: 'INCREASE',
+    changeAmount: totalPoints,
+    sourceType: 'RECHARGE_ORDER',
+    sourceId: order.id,
+    associationNo: order.orderNo,
+    idempotencyKey: `POINT-RECHARGE-${order.orderNo}`,
+    remark: '充值订单支付确认后积分到账',
+    metaJson: {
+      points: order.points,
+      bonusPoints: order.bonusPoints,
+      paymentTransactionId: paymentTransaction.id,
+    },
+  })
+
+  const pointGrant = await createSuccessfulBenefitGrant(tx, {
+    userId,
+    orderType: 'RECHARGE',
+    orderNo: order.orderNo,
+    grantType: 'POINTS',
+    benefitId: pointLog.id,
+    paymentTransactionId: paymentTransaction.id,
+    amount: totalPoints,
+    reason: '充值订单支付确认后发放积分',
+    metaJson: {
+      pointLogId: pointLog.id,
+      paymentTransactionId: paymentTransaction.id,
+    },
+  })
+
+  const updatedOrder = await tx.rechargeOrder.update({
+    where: { id: order.id },
+    data: {
+      payStatus: 'BENEFIT_GRANTED',
+      paidAmount,
+      paidAt: new Date(),
+    },
+  })
+
+  return serializeMarketingCenterRecord({
+    order: updatedOrder,
+    pointLog,
+    paymentTransaction,
+    benefitGrants: [pointGrant],
+    currentBalance: await readCurrentPointBalance(userId, tx),
+  })
+}
+
+export const confirmLocalPaymentAndGrantBenefits = async (userId: string, payload: LocalPaymentConfirmInput) => {
+  if (!isLocalPaymentSimulationEnabled()) {
+    throw new Error('本地支付确认未启用，生产环境禁止使用该入口')
+  }
+
+  const orderType = normalizeCommercialOrderType(payload.orderType)
+  const orderNo = normalizeOrderNo(payload.orderNo)
+  const lock = await acquireRedisLock(redisKeys.commercialOrderLock(orderType, orderNo), REDIS_CONFIG.taskLockTtlMs)
+  if (isRedisEnabled() && !lock) {
+    throw new Error('local payment confirmation is already locked')
+  }
+
+  try {
+    const result = await runPrismaTransactionWithRetry(async (tx) => {
+      const input = {
+        ...payload,
+        orderType,
+        orderNo,
+        rawPayload: {
+          ...(payload.rawPayload && typeof payload.rawPayload === 'object' && !Array.isArray(payload.rawPayload)
+            ? payload.rawPayload as Record<string, unknown>
+            : {}),
+          localSimulation: true,
+          willCallProvider: false,
+        },
+      }
+
+      if (orderType === 'MEMBERSHIP') {
+        return confirmMembershipPaymentInTransaction(tx, userId, input)
+      }
+
+      return confirmRechargePaymentInTransaction(tx, userId, input)
+    }, {
+      operationName: 'confirm_local_payment_and_grant_benefits',
+    })
+
+    await invalidateMarketingCenterOverviewCache(userId)
+    return result
+  } finally {
+    await releaseRedisLock(lock)
+  }
+}
+
+export const __commercialPaymentTestHooks = {
+  createPaymentIntentInTransaction,
+  processPaymentWebhookEventInTransaction,
+  confirmMembershipPaymentInTransaction,
+  confirmRechargePaymentInTransaction,
+  isLocalPaymentSimulationEnabled,
+  normalizeCommercialOrderType,
+  normalizeOrderNo,
+  recordPaymentTransaction,
+  sanitizePaymentRawPayload,
+}
+
 export const redeemCardCode = async (userId: string, code: string) => {
   const result = await prisma.$transaction(async (tx) => {
     const normalizedCode = String(code || '').trim().toUpperCase()

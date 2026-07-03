@@ -185,7 +185,7 @@
 
   const emit = defineEmits<FormEmits>()
 
-  const modelValue = defineModel<Record<string, any>>({ default: {} })
+  const modelValue = defineModel<Record<string, any>>({ default: () => ({}) })
 
   const rootProps = ['label', 'labelWidth', 'key', 'type', 'hidden', 'span', 'slots']
 
@@ -254,7 +254,7 @@
 
     // 清空所有表单项值(包含隐藏项)
     Object.assign(
-      modelValue.value,
+      modelValue.value as Record<string, any>,
       Object.fromEntries(props.items.map(({ key }) => [key, undefined]))
     )
 
