@@ -7,6 +7,7 @@ import {
   MARKETING_CENTER_MEMBERSHIP_ORDER_PATH,
   MARKETING_CENTER_OVERVIEW_PATH,
   MARKETING_CENTER_PAYMENT_INTENT_PATH,
+  MARKETING_CENTER_PAYMENT_SECRET_PREFLIGHT_PATH,
   MARKETING_CENTER_PAYMENT_WEBHOOK_MOCK_PATH,
   MARKETING_CENTER_RECHARGE_ORDER_PATH,
 } from './constants'
@@ -18,6 +19,7 @@ import {
   getMarketingCenterOverview,
   handleMarketingPaymentWebhook,
   performUserCheckin,
+  preflightPaymentSecretInjection,
   redeemCardCode,
 } from './service'
 import {
@@ -27,6 +29,7 @@ import {
   type MarketingCenterLocalPaymentConfirmPayload,
   type MarketingCenterMembershipOrderPayload,
   type MarketingCenterPaymentIntentPayload,
+  type MarketingCenterPaymentSecretPreflightPayload,
   type MarketingCenterRechargeOrderPayload,
 } from './shared'
 
@@ -77,6 +80,20 @@ const normalizePaymentIntentPayload = (payload: MarketingCenterPaymentIntentPayl
     returnUrl: String(payload.returnUrl || '').trim() || null,
     notifyUrl: String(payload.notifyUrl || '').trim() || null,
   }
+}
+
+const normalizePaymentSecretPreflightPayload = (payload: MarketingCenterPaymentSecretPreflightPayload) => {
+  const provider = String(payload.provider || 'MOCK').trim().toUpperCase()
+  const environment = String(payload.environment || 'mock').trim().toLowerCase()
+
+  if (!['MOCK', 'ALIPAY', 'WECHAT', 'AGGREGATOR'].includes(provider)) {
+    throw new Error('payment preflight provider is unsupported')
+  }
+  if (!['mock', 'sandbox', 'production'].includes(environment)) {
+    throw new Error('payment preflight environment is unsupported')
+  }
+
+  return { provider, environment }
 }
 
 // 处理用户侧营销中心请求。
@@ -158,6 +175,15 @@ export const handleMarketingCenterRequest = async (req: any, res: any) => {
       sendJson(res, 200, {
         data: await createMarketingPaymentIntent(currentUser.id, normalizePaymentIntentPayload(payload)),
         message: 'payment intent created',
+      })
+      return
+    }
+
+    if (req.method === 'POST' && requestPath === MARKETING_CENTER_PAYMENT_SECRET_PREFLIGHT_PATH) {
+      const payload = await readMarketingCenterBody<MarketingCenterPaymentSecretPreflightPayload>(req)
+      sendJson(res, 200, {
+        data: await preflightPaymentSecretInjection(normalizePaymentSecretPreflightPayload(payload)),
+        message: 'payment secret preflight completed',
       })
       return
     }

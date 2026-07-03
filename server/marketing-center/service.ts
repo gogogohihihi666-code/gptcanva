@@ -5,6 +5,7 @@ import { getOrSetJsonCache } from '../redis/json-cache'
 import { REDIS_CONFIG, isRedisEnabled } from '../redis/config'
 import { acquireRedisLock, releaseRedisLock, type RedisLockHandle } from '../redis/lock'
 import { redisKeys } from '../redis/keys'
+import { runPaymentSecretInjectionPreflight } from './payment/preflight'
 import { resolvePaymentProvider } from './payment/provider-registry'
 import {
   applyCapabilityFlags,
@@ -1195,6 +1196,11 @@ type PaymentWebhookHandleInput = {
   parsedBody?: unknown
 }
 
+type PaymentSecretPreflightInput = {
+  provider?: string
+  environment?: string
+}
+
 const normalizePaymentChannel = (value: unknown) => {
   const channel = String(value || 'MOCK').trim().toUpperCase()
   if (!/^[A-Z0-9_-]{1,32}$/.test(channel)) {
@@ -1315,6 +1321,10 @@ export const createMarketingPaymentIntent = async (userId: string, payload: Paym
   })
   await invalidateMarketingCenterOverviewCache(userId)
   return result
+}
+
+export const preflightPaymentSecretInjection = async (payload: PaymentSecretPreflightInput = {}) => {
+  return runPaymentSecretInjectionPreflight(payload)
 }
 
 const parseWebhookBody = (payload: PaymentWebhookHandleInput) => {

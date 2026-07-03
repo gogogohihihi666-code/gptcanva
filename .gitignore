@@ -17,6 +17,17 @@ components.d.ts
 # 不维护 npm lock，CI 使用 npm install（无 setup-node 缓存）
 package-lock.json
 *.local
+.env
+.env.local
+.env.*.local
+.env.production
+.env.production.local
+*.pem
+*.key
+*.p12
+*.pfx
+certs/
+secrets/
 
 # Editor directories and files
 .vscode/*
