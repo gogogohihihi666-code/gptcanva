@@ -42,3 +42,24 @@ This project keeps payment sandbox preparation in no-call mode until a human ope
 - `PAYMENT_WEBHOOK_SECRET`
 
 Real `.env` files, PEM/key/certificate bundles, and secret folders are ignored by Git.
+
+## Private Injection Locations
+
+Real payment sandbox variables must only be injected into one of these private locations:
+
+- `.env.local`
+- `.env.sandbox.local`
+- server secret store
+- deployment platform secret store
+
+Real payment sandbox variables must not be written to:
+
+- `.env.example`
+- `.env.production`
+- `.env.production.example`
+- Git tracked files
+- docs
+- tests
+- logs
+- chat records
+- screenshots
