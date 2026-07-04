@@ -78,8 +78,11 @@ Required decisions:
 
 - Real secrets must only be written to local or server-private env files.
 - Real secrets must not be written to `.env.example`.
+- Real secrets must not be written to `.env.production`, `.env.production.example`, or `.env.development.example`.
 - Real secrets must not be committed to Git.
+- Real secrets must not be written to `docs/` or `tests/`.
 - Real secrets must not be printed to logs.
+- Real secrets must not appear in chat records or screenshots.
 - Real secrets must not appear in test snapshots.
 - Real secrets must not appear in API error responses.
 - PEM, key, certificate, and secret bundles must remain under ignored private paths such as `certs/` or `secrets/`.

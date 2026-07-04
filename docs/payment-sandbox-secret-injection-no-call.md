@@ -57,9 +57,10 @@ Real payment sandbox variables must not be written to:
 - `.env.example`
 - `.env.production`
 - `.env.production.example`
+- `.env.development.example`
 - Git tracked files
-- docs
-- tests
+- `docs/`
+- `tests/`
 - logs
 - chat records
 - screenshots
