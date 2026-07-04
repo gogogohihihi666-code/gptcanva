@@ -23,6 +23,9 @@ package-lock.json
 .env.sandbox.local
 .env.production
 .env.production.local
+.env.development
+.env.*.development
+.env.development.local
 *.pem
 *.key
 *.p12
@@ -46,5 +49,4 @@ secrets/
 .codemoss/
 .codex-temp/
 .kiro/
-.env.development
 .env.production
