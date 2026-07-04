@@ -222,8 +222,9 @@
 }
 
 .profile-description {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   margin-top: 8px;
+  max-height: 96px;
   overflow: auto;
   width: 100%;
 }
@@ -257,6 +258,142 @@
 .hide-ODTLCX {
   opacity: 0;
   pointer-events: none;
+}
+
+.account-overview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+  width: 100%;
+}
+
+.account-overview-card {
+  box-sizing: border-box;
+  border: 1px solid var(--line-divider, rgba(255, 255, 255, .1));
+  border-radius: 8px;
+  background: var(--bg-block-primary-default, rgba(255, 255, 255, .06));
+  color: var(--text-primary, #f5fbff);
+  padding: 14px;
+  width: 100%;
+}
+
+.account-overview-card--points {
+  background: color-mix(in srgb, var(--brand-main-default, #7c5cff) 12%, var(--bg-block-primary-default, rgba(255, 255, 255, .06)));
+}
+
+.account-overview-card__header {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.account-overview-card__label {
+  color: var(--text-secondary, rgba(224, 245, 255, .68));
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.account-overview-card__value {
+  color: var(--text-primary, #f5fbff);
+  font-family: Montserrat, PingFang SC, sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 34px;
+  margin-top: 4px;
+}
+
+.account-overview-card__value--text {
+  font-family: PingFang SC, sans-serif;
+  font-size: 18px;
+  line-height: 26px;
+  overflow-wrap: anywhere;
+}
+
+.account-overview-card__badge {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .1);
+  color: var(--text-secondary, rgba(224, 245, 255, .76));
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 18px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.account-overview-card__meta {
+  color: var(--text-secondary, rgba(224, 245, 255, .68));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 20px;
+  margin-top: 10px;
+}
+
+.account-overview-card__meta--stack {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.account-overview-card__notice,
+.account-point-log-empty {
+  color: var(--text-tertiary, rgba(224, 245, 255, .48));
+  font-size: 12px;
+  line-height: 20px;
+  margin-top: 10px;
+}
+
+.account-point-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.account-point-log-item {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.account-point-log-item__main {
+  min-width: 0;
+}
+
+.account-point-log-item__title {
+  color: var(--text-primary, #f5fbff);
+  font-size: 13px;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-point-log-item__desc {
+  color: var(--text-tertiary, rgba(224, 245, 255, .48));
+  font-size: 11px;
+  line-height: 18px;
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+
+.account-point-log-item__side {
+  color: #65d6ad;
+  flex: 0 0 auto;
+  font-family: Montserrat, PingFang SC, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.account-point-log-item__side.is-decrease {
+  color: #ff8a65;
 }
 
 .scroll-container-AhepyD {

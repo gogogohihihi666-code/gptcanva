@@ -78,6 +78,61 @@
                   </div>
                 </div>
               </div>
+
+              <div class="account-overview-panel">
+                <div class="account-overview-card account-overview-card--points">
+                  <div class="account-overview-card__header">
+                    <div>
+                      <div class="account-overview-card__label">积分余额</div>
+                      <div class="account-overview-card__value">{{ accountPointsBalance }}</div>
+                    </div>
+                    <span class="account-overview-card__badge">{{ accountMarketingStatusText }}</span>
+                  </div>
+                  <div class="account-overview-card__meta">
+                    <span>可用 {{ accountPointsAvailable }}</span>
+                    <span v-if="accountPointsReserved > 0">预扣 {{ accountPointsReserved }}</span>
+                    <span v-else>无预扣</span>
+                  </div>
+                  <div v-if="accountMarketingError" class="account-overview-card__notice">
+                    积分数据加载失败，请稍后刷新。
+                  </div>
+                </div>
+
+                <div class="account-overview-card">
+                  <div class="account-overview-card__header">
+                    <div>
+                      <div class="account-overview-card__label">会员状态</div>
+                      <div class="account-overview-card__value account-overview-card__value--text">{{ membershipDisplayName }}</div>
+                    </div>
+                    <span class="account-overview-card__badge">{{ membershipStatusText }}</span>
+                  </div>
+                  <div class="account-overview-card__meta account-overview-card__meta--stack">
+                    <span>开始 {{ membershipStartText }}</span>
+                    <span>结束 {{ membershipEndText }}</span>
+                  </div>
+                </div>
+
+                <div class="account-overview-card account-overview-card--logs">
+                  <div class="account-overview-card__header">
+                    <div class="account-overview-card__label">最近积分流水</div>
+                    <span class="account-overview-card__badge">{{ recentPointLogs.length }} 条</span>
+                  </div>
+                  <div v-if="accountMarketingLoading" class="account-point-log-empty">加载中...</div>
+                  <div v-else-if="accountMarketingError" class="account-point-log-empty">流水加载失败</div>
+                  <div v-else-if="!recentPointLogs.length" class="account-point-log-empty">暂无积分流水</div>
+                  <div v-else class="account-point-log-list">
+                    <div v-for="item in recentPointLogs" :key="item.id" class="account-point-log-item">
+                      <div class="account-point-log-item__main">
+                        <div class="account-point-log-item__title">{{ getPointLogTitle(item) }}</div>
+                        <div class="account-point-log-item__desc">{{ getPointLogDescription(item) }}</div>
+                      </div>
+                      <div class="account-point-log-item__side" :class="{ 'is-decrease': isPointDecrease(item) }">
+                        {{ formatPointDelta(item) }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="scroll-container-AhepyD">
@@ -274,6 +329,7 @@ import {
   type MasonryRect,
 } from '@/components/home/discoverMasonryLayout'
 import { AUTH_LOGIN_SUCCESS_EVENT, useAuthStore } from '@/stores/auth'
+import { useMarketingCenterStore } from '@/stores/marketing-center'
 import { useRouter } from 'vue-router'
 
 interface AccountFeedItem {
@@ -301,6 +357,7 @@ const EMPTY_AVATAR_DATA_URI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.or
 
 // 读取当前认证状态。
 const authStore = useAuthStore()
+const marketingCenterStore = useMarketingCenterStore()
 const router = useRouter()
 
 // 登录成功后的页面数据刷新监听器。
@@ -317,6 +374,7 @@ const accountFeedItems = ref<AccountFeedItem[]>([])
 
 // 是否正在退出登录。
 const isLoggingOut = ref(false)
+const accountMarketingError = ref(false)
 
 // 详情弹层状态。
 const workDetailOpen = ref(false)
@@ -361,6 +419,89 @@ const followerCount = computed(() => 0)
 
 // 当前项目还没有关系链，这里先保持参考页默认值。
 const followingCount = computed(() => 0)
+
+const accountMarketingLoading = computed(() => marketingCenterStore.loading.value)
+const accountMarketingOverview = computed(() => marketingCenterStore.overview.value)
+const accountPointsBalance = computed(() => Number(accountMarketingOverview.value?.points?.balance || 0))
+const accountPointsAvailable = computed(() => Number(accountMarketingOverview.value?.points?.available ?? accountPointsBalance.value))
+const accountPointsReserved = computed(() => Math.max(0, accountPointsBalance.value - accountPointsAvailable.value))
+const recentPointLogs = computed(() => {
+  const logs = accountMarketingOverview.value?.points?.logs
+  return Array.isArray(logs) ? logs.slice(0, 5) as Array<Record<string, any>> : []
+})
+const activeSubscription = computed(() => accountMarketingOverview.value?.subscription as Record<string, any> | null)
+
+const accountMarketingStatusText = computed(() => {
+  if (accountMarketingLoading.value) return '加载中'
+  if (accountMarketingError.value) return '失败'
+  return '只读'
+})
+
+const membershipDisplayName = computed(() => {
+  const subscription = activeSubscription.value
+  const level = subscription?.level && typeof subscription.level === 'object'
+    ? subscription.level as Record<string, any>
+    : null
+  return String(level?.name || subscription?.levelName || subscription?.planName || '').trim() || '普通用户'
+})
+
+const membershipStatusText = computed(() => {
+  const status = String(activeSubscription.value?.status || '').trim().toUpperCase()
+  if (!activeSubscription.value) return '未开通'
+  if (status === 'ACTIVE') return '有效'
+  if (status === 'EXPIRED') return '已过期'
+  return status || '普通用户'
+})
+
+const formatAccountDate = (value: unknown) => {
+  const rawValue = String(value || '').trim()
+  if (!rawValue) return '暂无'
+  const date = new Date(rawValue)
+  if (Number.isNaN(date.getTime())) return rawValue
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+const membershipStartText = computed(() => formatAccountDate(activeSubscription.value?.startTime))
+const membershipEndText = computed(() => formatAccountDate(activeSubscription.value?.endTime))
+
+const loadAccountMarketingOverview = async (force = false) => {
+  if (!authStore.isLoggedIn.value) {
+    marketingCenterStore.clearOverview()
+    accountMarketingError.value = false
+    return
+  }
+
+  try {
+    accountMarketingError.value = false
+    await marketingCenterStore.loadOverview(force)
+  } catch (error) {
+    accountMarketingError.value = true
+    console.warn('读取用户积分与会员概览失败', error)
+  }
+}
+
+const isPointDecrease = (item: Record<string, any>) => String(item.action || '').toUpperCase() === 'DECREASE'
+
+const formatPointDelta = (item: Record<string, any>) => {
+  const amount = Math.abs(Number(item.changeAmount || 0))
+  return `${isPointDecrease(item) ? '-' : '+'}${amount}`
+}
+
+const getPointLogTitle = (item: Record<string, any>) => {
+  const changeType = String(item.changeType || '').trim()
+  const sourceType = String(item.sourceType || '').trim()
+  return changeType || sourceType || '积分变动'
+}
+
+const getPointLogDescription = (item: Record<string, any>) => {
+  const remark = String(item.remark || '').trim()
+  const sourceType = String(item.sourceType || '').trim()
+  const createdAt = formatAccountDate(item.createdAt)
+  const associationNo = String(item.associationNo || '').trim()
+  return [remark || sourceType || '账户流水', createdAt, associationNo ? `关联 ${associationNo}` : '']
+    .filter(Boolean)
+    .join(' · ')
+}
 
 // 当前列表根据二级标签过滤。
 const visibleGalleryItems = computed(() => {
@@ -674,9 +815,11 @@ onMounted(async () => {
   }
 
   await loadAccountFeedItems()
+  await loadAccountMarketingOverview()
 
   authLoginSuccessListener = () => {
     void loadAccountFeedItems()
+    void loadAccountMarketingOverview(true)
   }
   window.addEventListener(AUTH_LOGIN_SUCCESS_EVENT, authLoginSuccessListener)
 })
@@ -711,6 +854,18 @@ watch(secondaryTab, async () => {
 watch(primaryTab, async () => {
   await loadAccountFeedItems()
 })
+
+watch(
+    () => authStore.isLoggedIn.value,
+    (isLoggedIn) => {
+      if (isLoggedIn) {
+        void loadAccountMarketingOverview(true)
+        return
+      }
+      marketingCenterStore.clearOverview()
+      accountMarketingError.value = false
+    },
+)
 
 // 瀑布流根节点切换时，重新绑定尺寸监听。
 watch(masonryContainerRef, async (element, previousElement) => {
