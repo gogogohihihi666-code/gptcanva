@@ -141,6 +141,65 @@
                   <div class="scroll-container-AhepyD scroll-container-B4jFKc">
                     <div>
                       <div class="scroll-content-Hn6N56">
+                        <section class="account-task-overview" aria-labelledby="account-task-overview-title">
+                          <div class="account-section-header">
+                            <div>
+                              <h2 id="account-task-overview-title" class="account-section-title">我的生成任务</h2>
+                              <p class="account-section-subtitle">只读展示最近生成记录、状态与已有结果。</p>
+                            </div>
+                            <span class="account-section-count">{{ accountTaskItems.length }} 条</span>
+                          </div>
+
+                          <div v-if="accountTasksLoading" class="account-task-empty">正在加载生成任务...</div>
+                          <div v-else-if="accountTasksError" class="account-task-empty account-task-empty--error">
+                            生成任务加载失败，请稍后刷新。
+                          </div>
+                          <div v-else-if="!accountTaskItems.length" class="account-task-empty">
+                            暂无生成任务。完成生成后，任务状态和结果会展示在这里。
+                          </div>
+                          <div v-else class="account-task-list">
+                            <article v-for="task in accountTaskItems" :key="task.id" class="account-task-card">
+                              <div class="account-task-card__main">
+                                <div class="account-task-card__head">
+                                  <div class="account-task-card__title">{{ task.title }}</div>
+                                  <span class="account-task-status" :class="`is-${task.status.toLowerCase()}`">
+                                    {{ task.status }}
+                                  </span>
+                                </div>
+                                <div class="account-task-card__meta">
+                                  <span>{{ task.modelLabel }}</span>
+                                  <span>创建 {{ task.createdAtText }}</span>
+                                  <span v-if="task.finishedAtText">完成 {{ task.finishedAtText }}</span>
+                                </div>
+                                <div class="account-task-card__prompt">{{ task.promptText }}</div>
+                                <div v-if="task.failureReason" class="account-task-card__error">
+                                  失败原因：{{ task.failureReason }}
+                                </div>
+                                <div class="account-task-card__summary">
+                                  <span>结果 {{ task.resultCount }} 个</span>
+                                  <span>{{ task.pointsSummary }}</span>
+                                </div>
+                              </div>
+                              <button
+                                  class="account-task-card__action"
+                                  type="button"
+                                  :disabled="!task.canViewResult"
+                                  @click="openTaskResult(task)"
+                              >
+                                查看结果
+                              </button>
+                            </article>
+                          </div>
+                        </section>
+
+                        <div class="account-section-header account-section-header--works">
+                          <div>
+                            <h2 class="account-section-title">我的作品</h2>
+                            <p class="account-section-subtitle">展示已发布的图片和短片结果。</p>
+                          </div>
+                          <span class="account-section-count">{{ visibleGalleryItems.length }} 个</span>
+                        </div>
+
                         <div class="tab-group">
                           <div class="left-tabs">
                             <div class="tab-wrapper-aoGILw">
@@ -321,6 +380,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontstagePageShell from '@/components/layout/FrontstagePageShell.vue'
 import HomeDetailModalFrom from '@/components/home/components/HomeDetailModalFrom.vue'
 import { applyAssetAction, listAssetItems, type PersistedAssetItem } from '@/api/asset-items'
+import { listGenerationRecords, type PersistedGenerationRecord } from '@/api/generation-records'
 import { buildAssetUrl } from '@/api/http'
 import {
   buildPlainMasonryLayoutsFromSizes,
@@ -353,7 +413,25 @@ interface AccountFeedItem {
 }
 
 // 默认头像占位图，避免无头像用户在个人中心中显示为空白。
+type AccountTaskStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'STOPPED'
+
+interface AccountTaskSummary {
+  id: string
+  title: string
+  status: AccountTaskStatus
+  createdAtText: string
+  finishedAtText: string
+  modelLabel: string
+  promptText: string
+  failureReason: string
+  resultCount: number
+  pointsSummary: string
+  canViewResult: boolean
+  record: PersistedGenerationRecord
+}
+
 const EMPTY_AVATAR_DATA_URI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' rx='100' fill='%23E5E7EB'/%3E%3Ccircle cx='100' cy='76' r='30' fill='%239CA3AF'/%3E%3Cpath d='M52 154c8-24 28-38 48-38s40 14 48 38' fill='%239CA3AF'/%3E%3C/svg%3E"
+const EMPTY_ASSET_DATA_URI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='360' viewBox='0 0 480 360'%3E%3Crect width='480' height='360' rx='24' fill='%2321262f'/%3E%3Cpath d='M156 232l58-64 43 44 28-30 39 50H156z' fill='%23586573'/%3E%3Ccircle cx='312' cy='132' r='22' fill='%23717b8c'/%3E%3Ctext x='240' y='286' text-anchor='middle' font-family='Arial,sans-serif' font-size='24' fill='%23aeb7c5'%3EPreview unavailable%3C/text%3E%3C/svg%3E"
 
 // 读取当前认证状态。
 const authStore = useAuthStore()
@@ -371,6 +449,9 @@ const secondaryTab = ref<'inspiration' | 'short-video'>('inspiration')
 
 // 个人中心作品列表。
 const accountFeedItems = ref<AccountFeedItem[]>([])
+const accountTaskRecords = ref<PersistedGenerationRecord[]>([])
+const accountTasksLoading = ref(false)
+const accountTasksError = ref(false)
 
 // 是否正在退出登录。
 const isLoggingOut = ref(false)
@@ -463,6 +544,84 @@ const formatAccountDate = (value: unknown) => {
 
 const membershipStartText = computed(() => formatAccountDate(activeSubscription.value?.startTime))
 const membershipEndText = computed(() => formatAccountDate(activeSubscription.value?.endTime))
+
+const getRecordResultUrls = (record: PersistedGenerationRecord) => {
+  const outputUrls = Array.isArray(record.outputs)
+    ? record.outputs
+        .filter(output => ['image', 'video'].includes(String(output.outputType || '').toLowerCase()) && output.url)
+        .map(output => buildAssetUrl(output.url || ''))
+    : []
+  const imageUrls = Array.isArray(record.images) ? record.images.map(buildAssetUrl) : []
+  return Array.from(new Set([...outputUrls, ...imageUrls].filter(Boolean)))
+}
+
+const getAccountTaskStatus = (record: PersistedGenerationRecord): AccountTaskStatus => {
+  if (record.stopped) return 'STOPPED'
+  if (String(record.error || '').trim()) return 'FAILED'
+  if (record.done) return 'COMPLETED'
+  return record.agentTaskId ? 'RUNNING' : 'PENDING'
+}
+
+const getTaskFailureReason = (record: PersistedGenerationRecord) => {
+  return String(record.error || '').trim()
+}
+
+const getTaskFinishedAtText = (record: PersistedGenerationRecord) => {
+  const rawRecord = record as unknown as Record<string, unknown>
+  const rawFinishedAt = String(rawRecord.finishedAt || '').trim()
+  if (rawFinishedAt) return formatAccountDate(rawFinishedAt)
+  return record.done ? formatAccountDate(record.createdAt) : ''
+}
+
+const getTaskPointsSummary = (record: PersistedGenerationRecord) => {
+  const rawRecord = record as unknown as Record<string, unknown>
+  const pointCost = rawRecord.pointCost ?? rawRecord.pointsCost ?? rawRecord.creditCost ?? rawRecord.costPoints
+  const refundStatus = rawRecord.refundStatus ?? rawRecord.pointsRefundStatus
+  const refunded = rawRecord.refunded
+
+  const fragments: string[] = []
+  if (pointCost !== undefined && pointCost !== null && String(pointCost).trim()) {
+    fragments.push(`消耗 ${pointCost} 积分`)
+  }
+  if (refundStatus !== undefined && refundStatus !== null && String(refundStatus).trim()) {
+    fragments.push(`退款 ${refundStatus}`)
+  } else if (typeof refunded === 'boolean') {
+    fragments.push(refunded ? '已退款' : '未退款')
+  }
+
+  return fragments.length ? fragments.join(' · ') : '积分摘要暂无'
+}
+
+const buildTaskTitle = (record: PersistedGenerationRecord) => {
+  const modelLabel = String(record.model || record.modelKey || '').trim()
+  const sessionTitle = String(record.sessionTitle || '').trim()
+  const typeLabel = String(record.type || '').trim()
+  return modelLabel || sessionTitle || typeLabel || '生成任务'
+}
+
+const buildTaskPromptText = (record: PersistedGenerationRecord) => {
+  return String(record.prompt || record.content || '').trim() || '暂无任务描述'
+}
+
+const accountTaskItems = computed<AccountTaskSummary[]>(() => {
+  return accountTaskRecords.value.slice(0, 8).map((record) => {
+    const resultUrls = getRecordResultUrls(record)
+    return {
+      id: record.id,
+      title: buildTaskTitle(record),
+      status: getAccountTaskStatus(record),
+      createdAtText: formatAccountDate(record.createdAt),
+      finishedAtText: getTaskFinishedAtText(record),
+      modelLabel: String(record.model || record.modelKey || record.type || '未记录模型').trim(),
+      promptText: buildTaskPromptText(record),
+      failureReason: getTaskFailureReason(record),
+      resultCount: resultUrls.length || record.outputs?.length || 0,
+      pointsSummary: getTaskPointsSummary(record),
+      canViewResult: resultUrls.length > 0,
+      record,
+    }
+  })
+})
 
 const loadAccountMarketingOverview = async (force = false) => {
   if (!authStore.isLoggedIn.value) {
@@ -620,6 +779,11 @@ const onFeedImageLoad = (event: Event, index: number) => {
 
 // 图片加载失败时按方图占位，避免整个布局断掉。
 const onFeedImageError = (index: number) => {
+  const targetItem = visibleGalleryItems.value[index]
+  if (targetItem && targetItem.imageSrc !== EMPTY_ASSET_DATA_URI) {
+    targetItem.imageSrc = EMPTY_ASSET_DATA_URI
+  }
+
   if (feedNaturalSizes.value[index]) {
     return
   }
@@ -652,6 +816,27 @@ const loadAccountFeedItems = async () => {
 }
 
 // 点击锁定标签时给出轻提示，和参考页的禁用感一致。
+const loadAccountTaskRecords = async () => {
+  if (!authStore.isLoggedIn.value) {
+    accountTaskRecords.value = []
+    accountTasksError.value = false
+    return
+  }
+
+  try {
+    accountTasksLoading.value = true
+    accountTasksError.value = false
+    const records = await listGenerationRecords()
+    accountTaskRecords.value = Array.isArray(records) ? records : []
+  } catch (error) {
+    console.warn('读取个人生成任务失败', error)
+    accountTaskRecords.value = []
+    accountTasksError.value = true
+  } finally {
+    accountTasksLoading.value = false
+  }
+}
+
 const handleLockedTab = () => {
   ElMessage.info('赞过内容暂未开放')
 }
@@ -692,6 +877,39 @@ const handleLogout = async () => {
 }
 
 // 打开作品详情弹层。
+const mapTaskResultToFeedItem = (
+    task: AccountTaskSummary,
+    imageSrc: string,
+    index: number,
+): AccountFeedItem => ({
+  id: `${task.id}-result-${index}`,
+  ownerId: authStore.currentUser.value?.id || '',
+  imageSrc: imageSrc || EMPTY_ASSET_DATA_URI,
+  promptText: task.record.prompt || task.promptText,
+  authorName: displayUserName.value,
+  authorAvatarSrc: resolvedProfileAvatar.value,
+  favoriteCount: 0,
+  modelLabel: task.modelLabel,
+  aspectRatioLabel: task.record.ratio || '1:1',
+  createDate: task.createdAtText,
+  aiGeneratedText: '内容由 AI 生成',
+  promptTipLabel: '生成提示词',
+  badgeText: task.status === 'COMPLETED' ? '' : task.status,
+  assetType: task.record.type === 'video' ? 'video' : 'image',
+  publishStatus: 'readonly',
+  visibility: 'private',
+  reviewStatus: 'approved',
+})
+
+const openTaskResult = (task: AccountTaskSummary) => {
+  const resultUrls = getRecordResultUrls(task.record)
+  if (!resultUrls.length) return
+
+  workDetailGallery.value = resultUrls.map((url, index) => mapTaskResultToFeedItem(task, url, index))
+  workDetailGalleryIndex.value = 0
+  workDetailOpen.value = true
+}
+
 const openWorkDetail = (id: string) => {
   const currentIndex = visibleGalleryItems.value.findIndex(item => item.id === id)
   if (currentIndex < 0) return
@@ -814,10 +1032,12 @@ onMounted(async () => {
     masonryResizeObserver.observe(masonryContainerRef.value)
   }
 
+  await loadAccountTaskRecords()
   await loadAccountFeedItems()
   await loadAccountMarketingOverview()
 
   authLoginSuccessListener = () => {
+    void loadAccountTaskRecords()
     void loadAccountFeedItems()
     void loadAccountMarketingOverview(true)
   }
@@ -859,9 +1079,13 @@ watch(
     () => authStore.isLoggedIn.value,
     (isLoggedIn) => {
       if (isLoggedIn) {
+        void loadAccountTaskRecords()
         void loadAccountMarketingOverview(true)
         return
       }
+      accountTaskRecords.value = []
+      accountTasksError.value = false
+      accountTasksLoading.value = false
       marketingCenterStore.clearOverview()
       accountMarketingError.value = false
     },
