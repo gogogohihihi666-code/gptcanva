@@ -55,12 +55,14 @@ Required decisions:
 
 Human operator must prepare these values after selecting the aggregator:
 
-- provider code
-- merchant id
-- app id
-- gateway URL
-- secret, private key, or signing key required by that provider
-- webhook secret or public verification key
+- `PAYMENT_AGGREGATOR_SANDBOX_PROVIDER_CODE`
+- `PAYMENT_AGGREGATOR_SANDBOX_MERCHANT_ID`
+- `PAYMENT_AGGREGATOR_SANDBOX_APP_ID`
+- `PAYMENT_AGGREGATOR_SANDBOX_GATEWAY_URL`
+- `PAYMENT_AGGREGATOR_SANDBOX_SECRET`
+- `PAYMENT_AGGREGATOR_SANDBOX_PRIVATE_KEY`
+- `PAYMENT_AGGREGATOR_SANDBOX_PUBLIC_KEY`
+- webhook public verification key, if required by the selected provider
 - `PAYMENT_NOTIFY_URL`
 - `PAYMENT_RETURN_URL`
 

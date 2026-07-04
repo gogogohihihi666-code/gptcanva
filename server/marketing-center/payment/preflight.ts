@@ -32,6 +32,7 @@ export interface PaymentSecretInjectionPreflightResult {
   missingEnv: string[]
   placeholderEnv: string[]
   invalidEnv: string[]
+  warnings: string[]
   checks: Array<{
     code: string
     status: 'PASS' | 'WARN' | 'FAIL'
@@ -88,10 +89,12 @@ const PROVIDER_SPECS: Record<PaymentProviderCode, ProviderSecretSpec> = {
     enabledEnv: 'PAYMENT_AGGREGATOR_ENABLED',
     requiredEnv: [
       { name: 'PAYMENT_AGGREGATOR_SANDBOX_APP_ID', kind: 'plain', requiredInSandbox: true },
+      { name: 'PAYMENT_AGGREGATOR_SANDBOX_PROVIDER_CODE', kind: 'plain', requiredInSandbox: true },
       { name: 'PAYMENT_AGGREGATOR_SANDBOX_MERCHANT_ID', kind: 'plain', requiredInSandbox: true },
       { name: 'PAYMENT_AGGREGATOR_SANDBOX_GATEWAY_URL', kind: 'url', requiredInSandbox: true },
       { name: 'PAYMENT_NOTIFY_URL', kind: 'url', requiredInSandbox: true },
       { name: 'PAYMENT_RETURN_URL', kind: 'url', requiredInSandbox: true },
+      { name: 'PAYMENT_AGGREGATOR_SANDBOX_SECRET', kind: 'webhook_secret', requiredInSandbox: true },
       { name: 'PAYMENT_AGGREGATOR_SANDBOX_PRIVATE_KEY', kind: 'private_key', requiredInSandbox: true },
       { name: 'PAYMENT_AGGREGATOR_SANDBOX_PUBLIC_KEY', kind: 'public_key', requiredInSandbox: true },
       { name: 'PAYMENT_WEBHOOK_SECRET', kind: 'webhook_secret', requiredInSandbox: true },
@@ -249,6 +252,9 @@ export const runPaymentSecretInjectionPreflight = (
   const hasFail = checks.some((item) => item.status === 'FAIL')
   const hasWarn = checks.some((item) => item.status === 'WARN')
   const status = hasFail ? 'FAIL' : hasWarn ? 'WARN' : 'PASS'
+  const warnings = checks
+    .filter((item) => item.status === 'WARN')
+    .map((item) => item.env ? `${item.env}: ${item.message}` : item.message)
 
   return {
     provider,
@@ -259,6 +265,7 @@ export const runPaymentSecretInjectionPreflight = (
     missingEnv,
     placeholderEnv,
     invalidEnv,
+    warnings,
     checks,
     will_call_external: false,
     will_charge_real_money: false,

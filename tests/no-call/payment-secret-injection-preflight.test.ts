@@ -38,6 +38,13 @@ const clearPaymentEnv = () => {
     'WECHATPAY_SANDBOX_PRIVATE_KEY',
     'WECHATPAY_SANDBOX_CERTIFICATE',
     'WECHATPAY_SANDBOX_SERIAL_NO',
+    'PAYMENT_AGGREGATOR_SANDBOX_APP_ID',
+    'PAYMENT_AGGREGATOR_SANDBOX_PROVIDER_CODE',
+    'PAYMENT_AGGREGATOR_SANDBOX_MERCHANT_ID',
+    'PAYMENT_AGGREGATOR_SANDBOX_GATEWAY_URL',
+    'PAYMENT_AGGREGATOR_SANDBOX_SECRET',
+    'PAYMENT_AGGREGATOR_SANDBOX_PRIVATE_KEY',
+    'PAYMENT_AGGREGATOR_SANDBOX_PUBLIC_KEY',
     'PAYMENT_NOTIFY_URL',
     'PAYMENT_RETURN_URL',
     'PAYMENT_WEBHOOK_SECRET',
@@ -65,6 +72,20 @@ const setWeChatPlaceholderEnv = () => {
   process.env.WECHATPAY_SANDBOX_PRIVATE_KEY = 'your_wechatpay_sandbox_private_key'
   process.env.WECHATPAY_SANDBOX_CERTIFICATE = 'your_wechatpay_sandbox_certificate'
   process.env.WECHATPAY_SANDBOX_SERIAL_NO = 'your_wechatpay_sandbox_serial_no'
+  process.env.PAYMENT_NOTIFY_URL = 'https://your-domain.example/api/marketing/payment-webhooks'
+  process.env.PAYMENT_RETURN_URL = 'https://your-domain.example/payment/result'
+  process.env.PAYMENT_WEBHOOK_SECRET = 'your_payment_webhook_secret'
+}
+
+const setAggregatorPlaceholderEnv = () => {
+  process.env.PAYMENT_AGGREGATOR_ENABLED = 'true'
+  process.env.PAYMENT_AGGREGATOR_SANDBOX_APP_ID = 'your_payment_aggregator_sandbox_app_id'
+  process.env.PAYMENT_AGGREGATOR_SANDBOX_PROVIDER_CODE = 'your_payment_aggregator_sandbox_provider_code'
+  process.env.PAYMENT_AGGREGATOR_SANDBOX_MERCHANT_ID = 'your_payment_aggregator_sandbox_merchant_id'
+  process.env.PAYMENT_AGGREGATOR_SANDBOX_GATEWAY_URL = 'https://aggregator-sandbox.example.invalid/gateway'
+  process.env.PAYMENT_AGGREGATOR_SANDBOX_SECRET = 'your_payment_aggregator_sandbox_secret'
+  process.env.PAYMENT_AGGREGATOR_SANDBOX_PRIVATE_KEY = 'your_payment_aggregator_sandbox_private_key'
+  process.env.PAYMENT_AGGREGATOR_SANDBOX_PUBLIC_KEY = 'your_payment_aggregator_sandbox_public_key'
   process.env.PAYMENT_NOTIFY_URL = 'https://your-domain.example/api/marketing/payment-webhooks'
   process.env.PAYMENT_RETURN_URL = 'https://your-domain.example/payment/result'
   process.env.PAYMENT_WEBHOOK_SECRET = 'your_payment_webhook_secret'
@@ -204,6 +225,63 @@ describe('payment sandbox secret injection preflight no-call', () => {
     assert.ok(result.checks.some((item) => item.code === 'PRODUCTION_MOCK_DISABLED' && item.status === 'FAIL'))
   })
 
+  it('fails missing aggregator sandbox env without external calls', () => {
+    clearPaymentEnv()
+
+    const result = runPaymentSecretInjectionPreflight({ provider: 'AGGREGATOR', environment: 'sandbox' })
+
+    assert.equal(result.status, 'FAIL')
+    assert.equal(result.provider, 'AGGREGATOR')
+    assert.equal(result.channel, 'aggregator')
+    assert.equal(result.enabled, false)
+    assert.ok(result.missingEnv.includes('PAYMENT_AGGREGATOR_SANDBOX_PROVIDER_CODE'))
+    assert.ok(result.missingEnv.includes('PAYMENT_AGGREGATOR_SANDBOX_SECRET'))
+    assert.equal(result.will_call_external, false)
+    assert.equal(result.will_charge_real_money, false)
+    assert.equal(result.will_create_real_payment, false)
+    assert.equal(result.will_grant_benefit, false)
+  })
+
+  it('detects aggregator placeholder env without leaking values', () => {
+    clearPaymentEnv()
+    setAggregatorPlaceholderEnv()
+
+    const result = runPaymentSecretInjectionPreflight({ provider: 'AGGREGATOR', environment: 'sandbox' })
+    const serialized = JSON.stringify(result)
+
+    assert.equal(result.status, 'WARN')
+    assert.ok(result.placeholderEnv.includes('PAYMENT_AGGREGATOR_SANDBOX_PROVIDER_CODE'))
+    assert.ok(result.placeholderEnv.includes('PAYMENT_AGGREGATOR_SANDBOX_SECRET'))
+    assert.ok(result.warnings.some((warning) => warning.includes('PAYMENT_AGGREGATOR_SANDBOX_SECRET')))
+    assert.doesNotMatch(serialized, /your_payment_aggregator_sandbox_secret/)
+    assert.equal(result.will_call_external, false)
+  })
+
+  it('detects aggregator invalid env shapes without external calls', () => {
+    clearPaymentEnv()
+    process.env.PAYMENT_AGGREGATOR_ENABLED = 'true'
+    process.env.PAYMENT_AGGREGATOR_SANDBOX_APP_ID = 'sandbox-aggregator-app'
+    process.env.PAYMENT_AGGREGATOR_SANDBOX_PROVIDER_CODE = 'sandbox-aggregator'
+    process.env.PAYMENT_AGGREGATOR_SANDBOX_MERCHANT_ID = 'sandbox-merchant'
+    process.env.PAYMENT_AGGREGATOR_SANDBOX_GATEWAY_URL = 'not-a-url'
+    process.env.PAYMENT_AGGREGATOR_SANDBOX_SECRET = 'too-short'
+    process.env.PAYMENT_AGGREGATOR_SANDBOX_PRIVATE_KEY = 'invalid-private-key-shape'
+    process.env.PAYMENT_AGGREGATOR_SANDBOX_PUBLIC_KEY = 'invalid-public-key-shape'
+    process.env.PAYMENT_NOTIFY_URL = 'https://merchant.example.invalid/api/marketing/payment-webhooks'
+    process.env.PAYMENT_RETURN_URL = 'https://merchant.example.invalid/payment/result'
+    process.env.PAYMENT_WEBHOOK_SECRET = 'not-placeholder-webhook-secret'
+
+    const result = runPaymentSecretInjectionPreflight({ provider: 'AGGREGATOR', environment: 'sandbox' })
+    const serialized = JSON.stringify(result)
+
+    assert.equal(result.status, 'FAIL')
+    assert.ok(result.invalidEnv.includes('PAYMENT_AGGREGATOR_SANDBOX_GATEWAY_URL'))
+    assert.ok(result.invalidEnv.includes('PAYMENT_AGGREGATOR_SANDBOX_SECRET'))
+    assert.ok(result.invalidEnv.includes('PAYMENT_AGGREGATOR_SANDBOX_PRIVATE_KEY'))
+    assert.doesNotMatch(serialized, /invalid-private-key-shape/)
+    assert.equal(result.will_call_external, false)
+  })
+
   it('keeps sandbox provider unable to make real calls even with authorization env', () => {
     clearPaymentEnv()
     setAlipayPlaceholderEnv()
@@ -250,8 +328,11 @@ describe('payment sandbox secret injection preflight no-call', () => {
     }
 
     assert.match(envExample, /ALIPAY_SANDBOX_PRIVATE_KEY=your_alipay_sandbox_private_key/)
+    assert.match(envExample, /^PAYMENT_PROVIDER=mock/m)
     assert.match(envExample, /WECHATPAY_SANDBOX_API_V3_KEY=your_wechatpay_sandbox_api_v3_key/)
     assert.match(envExample, /WECHATPAY_SANDBOX_CERTIFICATE=your_wechatpay_sandbox_certificate/)
+    assert.match(envExample, /PAYMENT_AGGREGATOR_SANDBOX_PROVIDER_CODE=your_payment_aggregator_sandbox_provider_code/)
+    assert.match(envExample, /PAYMENT_AGGREGATOR_SANDBOX_SECRET=your_payment_aggregator_sandbox_secret/)
     assert.match(constants, /MARKETING_CENTER_PAYMENT_SECRET_PREFLIGHT_PATH/)
     assert.match(handler, /preflightPaymentSecretInjection/)
     assert.match(docs, /will_call_external=false/)
