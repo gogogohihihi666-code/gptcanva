@@ -33,6 +33,11 @@ export const adminNavGroups: AdminNavGroup[] = [
         path: '/admin/marketing',
         description: '管理会员订阅、积分充值与奖励活动',
       },
+      {
+        label: '订单审计',
+        path: '/admin/orders',
+        description: '只读查询会员订单、充值订单、支付交易与权益发放状态',
+      },
     ],
   },
   {
@@ -81,7 +86,7 @@ export const adminNavGroups: AdminNavGroup[] = [
       {
         label: 'Redis 管理',
         path: '/admin/redis',
-        description: '查看 Redis 健康状态、缓存数量与任务运行态',
+        description: '查看 Redis 健康状态、缓存数量与任务运行状态',
       },
       {
         label: '审计日志',

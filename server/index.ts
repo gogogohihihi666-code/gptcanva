@@ -21,6 +21,8 @@ import { isAdminDashboardPath } from './admin-dashboard/constants'
 import { handleAdminDashboardRequest } from './admin-dashboard/request-handler'
 import { isAdminMarketingPath } from './admin-marketing/constants'
 import { handleAdminMarketingRequest } from './admin-marketing/request-handler'
+import { isAdminOrdersPath } from './admin-orders/constants'
+import { handleAdminOrdersRequest } from './admin-orders/request-handler'
 import { isMarketingCenterPath } from './marketing-center/constants'
 import { handleMarketingCenterRequest } from './marketing-center/request-handler'
 import { isSystemConfigPath } from './system-config/constants'
@@ -496,6 +498,14 @@ const REQUEST_ROUTE_STRATEGIES: RequestRouteStrategy[] = [
     match: isAdminMarketingPath,
     handle: async (req, res) => {
       await handleAdminMarketingRequest(req, res)
+      return true
+    },
+  },
+  {
+    key: 'admin-orders',
+    match: isAdminOrdersPath,
+    handle: async (req, res) => {
+      await handleAdminOrdersRequest(req, res)
       return true
     },
   },
