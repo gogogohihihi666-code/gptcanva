@@ -61,6 +61,8 @@ const ADMIN_USERS_LIST_SCOPE = 'admin-users-list'
 const ADMIN_USERS_DETAIL_SCOPE = 'admin-users-detail'
 const ADMIN_USERS_LIST_CACHE_PATTERN = redisKeys.cache(ADMIN_USERS_LIST_SCOPE, '*')
 const ADMIN_USERS_DETAIL_CACHE_PATTERN = redisKeys.cache(ADMIN_USERS_DETAIL_SCOPE, '*')
+const POINT_ADJUSTMENT_REMARK_MIN_LENGTH = 5
+const POINT_ADJUSTMENT_REMARK_REQUIRED_MESSAGE = '请填写调整原因，便于审计追踪'
 const buildAdminUsersListCacheKey = (options: ListAdminUsersOptions = {}) => {
   const hash = crypto
     .createHash('sha1')
@@ -76,6 +78,14 @@ const buildAdminUsersListCacheKey = (options: ListAdminUsersOptions = {}) => {
 }
 const buildAdminUserDetailCacheKey = (targetUserId: string) => {
   return redisKeys.cache(ADMIN_USERS_DETAIL_SCOPE, targetUserId)
+}
+
+export const normalizeAdminPointAdjustmentRemark = (remark?: string | null) => {
+  const normalizedRemark = String(remark || '').trim()
+  if (normalizedRemark.length < POINT_ADJUSTMENT_REMARK_MIN_LENGTH) {
+    throw new Error(POINT_ADJUSTMENT_REMARK_REQUIRED_MESSAGE)
+  }
+  return normalizedRemark
 }
 
 export interface UpdateAdminUserProfileInput {
@@ -237,6 +247,7 @@ const appendAdminPointLog = async (tx: typeof prisma | any, input: {
 }) => {
   const currentBalance = await readCurrentPointBalance(input.userId, tx)
   const normalizedAmount = Math.max(0, Math.round(Number(input.changeAmount) || 0))
+  const normalizedRemark = normalizeAdminPointAdjustmentRemark(input.remark)
 
   if (normalizedAmount <= 0) {
     throw new Error('调整积分必须大于 0')
@@ -264,7 +275,7 @@ const appendAdminPointLog = async (tx: typeof prisma | any, input: {
       sourceType: 'ADMIN_ADJUST',
       sourceId: input.sourceId || input.currentUserId,
       associationNo: input.associationNo || buildSerialNo('ADMPTS'),
-      remark: String(input.remark || '').trim() || `后台管理员${input.action === 'DECREASE' ? '扣减' : '增加'}积分`,
+      remark: normalizedRemark,
       metaJson: {
         operatorUserId: input.currentUserId,
       } as any,
@@ -1285,4 +1296,8 @@ export const deleteAdminUser = async (input: {
 
   await invalidateAdminUsersCaches(targetUserId)
   return true
+}
+
+export const __adminUsersTestHooks = {
+  normalizeAdminPointAdjustmentRemark,
 }

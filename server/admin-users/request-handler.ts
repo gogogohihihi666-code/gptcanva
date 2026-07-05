@@ -13,6 +13,7 @@ import {
   getAdminUserDetail,
   listAdminUserMembershipOrders,
   listAdminUsers,
+  normalizeAdminPointAdjustmentRemark,
   resetAdminUserLoginState,
   updateAdminUserProfile,
   updateAdminUserRole,
@@ -103,6 +104,7 @@ const readAdminUserPointAdjustmentBody = async (req: any) => {
 
   const action: PointActionType = payload?.action === 'DECREASE' ? 'DECREASE' : 'INCREASE'
   const changeAmount = Math.max(0, Math.round(Number(payload?.changeAmount) || 0))
+  const remark = normalizeAdminPointAdjustmentRemark(payload?.remark)
 
   if (changeAmount <= 0) {
     throw new Error('调整积分必须大于 0')
@@ -111,7 +113,7 @@ const readAdminUserPointAdjustmentBody = async (req: any) => {
   return {
     action,
     changeAmount,
-    remark: payload?.remark,
+    remark,
   }
 }
 
@@ -260,6 +262,7 @@ export const handleAdminUsersRequest = async (req: any, res: any) => {
 
     if (req.method === 'POST' && targetUserId && action === 'points-adjustment') {
       const payload = await readAdminUserPointAdjustmentBody(req)
+      const before = await getAdminUserDetail(targetUserId)
       const data = await adjustAdminUserPoints({
         targetUserId,
         currentUserId: currentUser.id,
@@ -272,9 +275,19 @@ export const handleAdminUsersRequest = async (req: any, res: any) => {
         targetType: 'app_user',
         targetId: targetUserId,
         beforeJson: {
+          targetUser: {
+            id: before.id,
+            name: before.name,
+            maskedEmail: before.maskedEmail,
+            maskedPhone: before.maskedPhone,
+          },
+          currentPointBalance: before.currentPointBalance,
           request: payload,
         },
-        afterJson: data,
+        afterJson: {
+          pointLog: data,
+          balanceAfter: (data as any)?.balanceAfter,
+        },
       })
       sendJson(res, 200, { data, message: '用户积分已调整' })
       return

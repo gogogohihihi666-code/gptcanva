@@ -569,6 +569,25 @@
               <strong class="admin-user-balance-preview__value admin-user-balance-preview__value--active">{{ pointPreviewBalance }}</strong>
             </div>
           </div>
+          <div class="admin-user-audit-summary">
+            <div class="admin-user-audit-summary__item">
+              <span>目标用户</span>
+              <strong>{{ currentPointAdjustUserDisplayName }}</strong>
+            </div>
+            <div class="admin-user-audit-summary__item">
+              <span>可识别账号</span>
+              <strong>{{ currentPointAdjustUserIdentifier }}</strong>
+            </div>
+            <div class="admin-user-audit-summary__item">
+              <span>调整方向</span>
+              <strong>{{ pointAdjustmentDirectionLabel }}</strong>
+            </div>
+            <div class="admin-user-audit-summary__item">
+              <span>调整数量</span>
+              <strong>{{ Math.max(0, Number(pointForm.changeAmount || 0)) }}</strong>
+            </div>
+            <div class="admin-user-audit-summary__notice">本操作将写入审计日志，请确认目标用户、积分变化和调整原因无误。</div>
+          </div>
           <div class="admin-form__grid">
             <div class="admin-form__field">
               <label class="admin-form__label">调整方向</label>
@@ -599,7 +618,17 @@
             </div>
             <div class="admin-form__field admin-form__field--full">
               <label class="admin-form__label">备注</label>
-              <textarea v-model.trim="pointForm.remark" class="admin-textarea" rows="4" placeholder="请输入调整原因，例如：活动补发积分"></textarea>
+              <textarea
+                v-model.trim="pointForm.remark"
+                class="admin-textarea"
+                rows="4"
+                required
+                :minlength="POINT_ADJUSTMENT_REMARK_MIN_LENGTH"
+                placeholder="请输入调整原因，例如：活动补发积分"
+              ></textarea>
+              <div class="admin-user-audit-hint" :class="{ 'is-error': Boolean(pointAdjustmentRemarkError) }">
+                {{ pointAdjustmentRemarkError || '备注会随本次积分调整写入审计日志。' }}
+              </div>
             </div>
           </div>
           <AdminFormActions
@@ -756,7 +785,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Coin, Delete, DocumentCopy, Edit, Key, Lightning, MoreFilled, Star, Tickets, User } from '@element-plus/icons-vue'
 import AdminFilterChips, { type AdminFilterChipGroup } from '@/components/admin/common/AdminFilterChips.vue'
 import AdminFilterToolbar from '@/components/admin/common/AdminFilterToolbar.vue'
@@ -799,6 +828,8 @@ const selectedUserDetail = ref<AdminUserDetail | null>(null)
 const membershipOrders = ref<AdminUserMembershipOrderItem[]>([])
 const selectedUserId = ref('')
 const { confirmDanger } = useAdminConfirm()
+const POINT_ADJUSTMENT_REMARK_MIN_LENGTH = 5
+const POINT_ADJUSTMENT_REMARK_REQUIRED_MESSAGE = '请填写调整原因，便于审计追踪'
 
 const editDialogVisible = ref(false)
 const editMode = ref<'create' | 'edit'>('edit')
@@ -901,6 +932,34 @@ const pointPreviewBalance = computed(() => {
   return pointForm.action === 'DECREASE'
     ? Math.max(0, currentBalance - amount)
     : currentBalance + amount
+})
+const currentPointAdjustUser = computed(() => {
+  if (selectedUserDetail.value?.id === pointForm.id) {
+    return selectedUserDetail.value
+  }
+  return users.value.find(item => item.id === pointForm.id) || null
+})
+const currentPointAdjustUserDisplayName = computed(() => {
+  const user = currentPointAdjustUser.value
+  return user?.name || (user ? buildUserDisplayNo(user.id) : '-')
+})
+const currentPointAdjustUserIdentifier = computed(() => {
+  const user = currentPointAdjustUser.value
+  if (!user) {
+    return '-'
+  }
+  return user.maskedEmail || user.maskedPhone || buildUserDisplayNo(user.id)
+})
+const pointAdjustmentDirectionLabel = computed(() => pointForm.action === 'DECREASE' ? '扣减' : '增加')
+const pointAdjustmentRemark = computed(() => pointForm.remark.trim())
+const pointAdjustmentRemarkError = computed(() => {
+  if (!pointAdjustmentRemark.value) {
+    return POINT_ADJUSTMENT_REMARK_REQUIRED_MESSAGE
+  }
+  if (pointAdjustmentRemark.value.length < POINT_ADJUSTMENT_REMARK_MIN_LENGTH) {
+    return `调整原因至少 ${POINT_ADJUSTMENT_REMARK_MIN_LENGTH} 个字符，便于审计追踪`
+  }
+  return ''
 })
 const selectedMembershipLevel = computed(() => {
   return membershipLevels.value.find(item => item.id === membershipForm.levelId) || null
@@ -1245,19 +1304,65 @@ const handleSubmitEdit = async () => {
   }
 }
 
+const validatePointAdjustmentForm = () => {
+  if (Number(pointForm.changeAmount || 0) <= 0) {
+    ElMessage.warning('请输入大于 0 的调整积分')
+    return false
+  }
+  if (pointAdjustmentRemarkError.value) {
+    ElMessage.warning(pointAdjustmentRemarkError.value)
+    return false
+  }
+  return true
+}
+
+const confirmPointAdjustmentAudit = async () => {
+  const amount = Math.max(0, Number(pointForm.changeAmount || 0))
+  await ElMessageBox.confirm(
+    [
+      `目标用户：${currentPointAdjustUserDisplayName.value}`,
+      `用户标识：${currentPointAdjustUserIdentifier.value}`,
+      `用户 ID：${pointForm.id}`,
+      `当前积分余额：${pointCurrentBalance.value}`,
+      `调整方向：${pointAdjustmentDirectionLabel.value}`,
+      `调整数量：${amount}`,
+      `调整后余额：${pointPreviewBalance.value}`,
+      `备注：${pointAdjustmentRemark.value}`,
+      '',
+      '本操作将写入审计日志，请确认后继续。',
+    ].join('\n'),
+    '确认积分调整',
+    {
+      type: pointForm.action === 'DECREASE' ? 'warning' : 'info',
+      confirmButtonText: '确认写入审计日志',
+      cancelButtonText: '取消',
+      distinguishCancelAndClose: true,
+    },
+  )
+}
+
 const handleSubmitPointAdjust = async () => {
   if (!pointForm.id) {
     return
   }
+  if (!validatePointAdjustmentForm()) {
+    return
+  }
+  try {
+    await confirmPointAdjustmentAudit()
+  } catch {
+    return
+  }
+  const targetUserId = pointForm.id
   submitting.value = true
   try {
-    await adjustAdminUserPoints(pointForm.id, {
+    await adjustAdminUserPoints(targetUserId, {
       action: pointForm.action,
       changeAmount: Number(pointForm.changeAmount || 0),
-      remark: pointForm.remark,
+      remark: pointAdjustmentRemark.value,
     })
     closePointDialog()
-    await refreshAfterUserMutation(pointForm.id)
+    await refreshAfterUserMutation(targetUserId)
   } finally {
     submitting.value = false
   }
@@ -1867,6 +1972,53 @@ onMounted(async () => {
   color: var(--brand-main-default);
 }
 
+.admin-user-audit-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--warning-default, #f59e0b) 36%, transparent);
+  background: color-mix(in srgb, var(--warning-default, #f59e0b) 8%, var(--bg-surface));
+}
+
+.admin-user-audit-summary__item {
+  min-width: 0;
+}
+
+.admin-user-audit-summary__item span {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.admin-user-audit-summary__item strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.admin-user-audit-summary__notice {
+  grid-column: 1 / -1;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.admin-user-audit-hint {
+  margin-top: 8px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-user-audit-hint.is-error {
+  color: var(--danger-default, #ef4444);
+}
+
 .admin-user-option-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2379,6 +2531,7 @@ onMounted(async () => {
 
   .admin-user-dialog-summary,
   .admin-user-option-grid,
+  .admin-user-audit-summary,
   .admin-user-balance-preview {
     grid-template-columns: 1fr;
   }
