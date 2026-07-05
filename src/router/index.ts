@@ -24,6 +24,7 @@ const AdminMarketing = () => import('../views/admin/marketing/AdminMarketing.vue
 const AdminOrders = () => import('../views/admin/orders/AdminOrders.vue')
 const AdminSkills = () => import('../views/admin/skills/AdminSkills.vue')
 const AdminProviders = () => import('../views/admin/providers/AdminProviders.vue')
+const AdminProviderHealth = () => import('../views/admin/provider-health/AdminProviderHealth.vue')
 const AdminStorage = () => import('../views/admin/storage/AdminStorage.vue')
 const AdminSystem = () => import('../views/admin/system/AdminSystem.vue')
 const AdminRedis = () => import('../views/admin/redis/AdminRedis.vue')
@@ -186,6 +187,15 @@ const routes: RouteRecordRaw[] = [
         path: 'providers',
         name: 'AdminProviders',
         component: AdminProviders,
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true,
+        },
+      },
+      {
+        path: 'provider-health',
+        name: 'AdminProviderHealth',
+        component: AdminProviderHealth,
         meta: {
           requiresAuth: true,
           requiresAdmin: true,

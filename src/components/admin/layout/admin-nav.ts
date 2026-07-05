@@ -69,6 +69,11 @@ export const adminNavGroups: AdminNavGroup[] = [
         description: '管理 AI 厂商地址、密钥与请求端点',
       },
       {
+        label: 'AI 健康检查',
+        path: '/admin/provider-health',
+        description: '只读检查 Provider、模型、任务 gate、Worker、存储与真实 smoke gate',
+      },
+      {
         label: '存储配置',
         path: '/admin/storage',
         description: '管理本地与对象存储方案',

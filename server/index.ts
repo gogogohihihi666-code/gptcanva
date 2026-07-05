@@ -19,6 +19,8 @@ import { isAdminConversationSettingsPath } from './conversation-settings/constan
 import { handleAdminConversationSettingsRequest } from './conversation-settings/request-handler'
 import { isAdminDashboardPath } from './admin-dashboard/constants'
 import { handleAdminDashboardRequest } from './admin-dashboard/request-handler'
+import { isAdminProviderHealthPath } from './admin-provider-health/constants'
+import { handleAdminProviderHealthRequest } from './admin-provider-health/request-handler'
 import { isAdminMarketingPath } from './admin-marketing/constants'
 import { handleAdminMarketingRequest } from './admin-marketing/request-handler'
 import { isAdminOrdersPath } from './admin-orders/constants'
@@ -450,6 +452,14 @@ const REQUEST_ROUTE_STRATEGIES: RequestRouteStrategy[] = [
     match: isAdminDashboardPath,
     handle: async (req, res) => {
       await handleAdminDashboardRequest(req, res)
+      return true
+    },
+  },
+  {
+    key: 'admin-provider-health',
+    match: isAdminProviderHealthPath,
+    handle: async (req, res) => {
+      await handleAdminProviderHealthRequest(req, res)
       return true
     },
   },
