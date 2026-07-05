@@ -707,6 +707,30 @@ export const toAuthUserProfile = (user: {
 }
 
 // 通过会话令牌查询当前用户。
+const isConcurrentSessionTouchError = (error: unknown) => {
+  const message = String((error as { message?: unknown })?.message || '')
+  return message.includes('Record has changed since last read')
+    && message.includes('app_sessions')
+}
+
+export const touchUserSessionLastActiveAt = async (tx: typeof prisma | any, sessionId: string) => {
+  try {
+    await tx.appSession.update({
+      where: {
+        id: sessionId,
+      },
+      data: {
+        lastActiveAt: new Date(),
+      },
+    })
+  } catch (error) {
+    if (isConcurrentSessionTouchError(error)) {
+      return
+    }
+    throw error
+  }
+}
+
 export const getUserBySessionToken = async (sessionToken: string) => {
   const normalizedToken = sessionToken.trim()
   if (!normalizedToken) {
@@ -741,14 +765,7 @@ export const getUserBySessionToken = async (sessionToken: string) => {
     return null
   }
 
-  await prisma.appSession.update({
-    where: {
-      id: session.id,
-    },
-    data: {
-      lastActiveAt: new Date(),
-    },
-  })
+  await touchUserSessionLastActiveAt(prisma, session.id)
 
   return toAuthUserProfile(session.user, session.authMethodType)
 }
@@ -773,3 +790,7 @@ export const revokeSessionToken = async (sessionToken: string) => {
 
 // 读取会话 Cookie 最大存活秒数。
 export const getSessionCookieMaxAge = () => readSessionExpireDays() * 24 * 60 * 60
+
+export const __authSessionTestHooks = {
+  touchUserSessionLastActiveAt,
+}
