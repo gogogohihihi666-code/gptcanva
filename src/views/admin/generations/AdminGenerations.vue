@@ -10,10 +10,31 @@
       title="筛选条件"
       description="当前展示全站生成记录，筛选与分页均由服务端完成。"
       :active-count="activeFilterCount"
+      :disabled="loading"
       collapsible
+      show-reset
+      show-apply
+      @apply="applyFilters"
+      @reset="resetFilters"
     >
+      <template #search>
+        <div class="admin-generation-audit-search">
+          <input v-model.trim="filters.keyword" class="admin-input" type="text" placeholder="Search task or prompt">
+          <input v-model.trim="filters.userKeyword" class="admin-input" type="text" placeholder="Search user">
+          <input v-model="filters.createdFrom" class="admin-input" type="date" title="From">
+          <input v-model="filters.createdTo" class="admin-input" type="date" title="To">
+        </div>
+      </template>
       <template #filters>
-        <AdminFilterChips :groups="filterChipGroups" compact @select="handleChipSelect" />
+        <div class="admin-generation-audit-filters">
+          <AdminFilterChips :groups="filterChipGroups" compact @select="handleChipSelect" />
+          <label class="admin-generation-audit-field">
+            <span>Refund status</span>
+            <select v-model="filters.refundStatus" class="admin-input" @change="applyFilters">
+              <option v-for="option in refundStatusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+            </select>
+          </label>
+        </div>
       </template>
       <template #meta>
         <span class="admin-skill-toolbar__summary">共 {{ pagination.total }} 条记录</span>
@@ -85,12 +106,33 @@
                 <strong>文本结果：</strong>{{ record.content }}
               </div>
 
+              <div class="admin-generation-audit-panel">
+                <div class="admin-generation-audit-panel__item">
+                  <span>Point cost</span>
+                  <strong>{{ formatPointAmount(record.pointAudit?.pointAmount) }}</strong>
+                  <small>Logs {{ record.pointAudit?.relatedPointLogs.length || 0 }}</small>
+                </div>
+                <div class="admin-generation-audit-panel__item">
+                  <span>Refund status</span>
+                  <strong :class="getRefundStatusClass(record.pointAudit?.refundStatus, record.pointAudit?.isCompensable)">
+                    {{ formatRefundStatus(record.pointAudit?.refundStatus, record.pointAudit?.isCompensable) }}
+                  </strong>
+                  <small>Refunded {{ formatPointAmount(record.pointAudit?.refundAmount) }}</small>
+                </div>
+                <div class="admin-generation-audit-panel__item">
+                  <span>Review note</span>
+                  <strong>{{ formatCompensationSummary(record.pointAudit?.compensationSummary) }}</strong>
+                  <small>{{ record.pointAudit?.pointLogId ? `Consume log ${record.pointAudit.pointLogId}` : 'No consume log' }}</small>
+                </div>
+              </div>
+
               <div class="admin-generation-card__footer">
                 <div class="admin-generation-card__meta">
                   任务 ID：{{ record.agentTaskId || '未记录' }}
                 </div>
-                <div class="admin-generation-card__meta">
+                <div class="admin-generation-card__meta admin-generation-card__footer-actions">
                   {{ buildOutputSummary(record) }}
+                  <button class="admin-inline-button" type="button" @click="openReadonlyDetail(record)">View details</button>
                 </div>
               </div>
             </div>
@@ -105,11 +147,64 @@
         </div>
       </div>
     </div>
+    <div v-if="detailRecord" class="admin-dialog-mask" @click.self="closeReadonlyDetail">
+      <div class="admin-dialog admin-generation-audit-dialog">
+        <div class="admin-dialog__header">
+          <div>
+            <h4 class="admin-dialog__title">Failed task readonly detail</h4>
+            <p class="admin-dialog__desc">Read-only audit for task, point logs, and refund status. No retry or compensation action is available here.</p>
+          </div>
+          <button class="admin-icon-button" type="button" @click="closeReadonlyDetail">x</button>
+        </div>
+        <div class="admin-dialog__body">
+          <div class="admin-generation-audit-detail-grid">
+            <section>
+              <span>Task ID</span>
+              <strong>{{ detailRecord.id }}</strong>
+            </section>
+            <section>
+              <span>User</span>
+              <strong>{{ detailRecord.user?.name || detailRecord.user?.email || detailRecord.user?.phone || detailRecord.user?.id || 'Unknown' }}</strong>
+            </section>
+            <section>
+              <span>Status</span>
+              <strong>{{ getRecordStatus(detailRecord) }}</strong>
+            </section>
+            <section>
+              <span>Refund status</span>
+              <strong>{{ formatRefundStatus(detailRecord.pointAudit?.refundStatus, detailRecord.pointAudit?.isCompensable) }}</strong>
+            </section>
+          </div>
+
+          <div class="admin-generation-audit-detail-section">
+            <h5>Error</h5>
+            <p>{{ formatGenerationError(detailRecord.error, 'No error message') }}</p>
+          </div>
+
+          <div class="admin-generation-audit-detail-section">
+            <h5>Related point logs</h5>
+            <div v-if="!detailRecord.pointAudit?.relatedPointLogs.length" class="admin-empty">No related point logs.</div>
+            <div v-else class="admin-generation-audit-log-list">
+              <div v-for="log in detailRecord.pointAudit.relatedPointLogs" :key="log.id" class="admin-generation-audit-log">
+                <strong>{{ log.changeType }} {{ log.changeAmount }}</strong>
+                <span>{{ log.accountNo }} · {{ log.associationNo || log.sourceId || '-' }}</span>
+                <small>{{ formatDate(log.createdAt) }} · {{ log.modelName || log.modelKey || '-' }}</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="admin-generation-audit-detail-section">
+            <h5>Manual review note</h5>
+            <p>{{ formatCompensationSummary(detailRecord.pointAudit?.compensationSummary) }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
   </AdminPageContainer>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import AdminFilterChips, { type AdminFilterChipGroup } from '@/components/admin/common/AdminFilterChips.vue'
 import AdminFilterToolbar from '@/components/admin/common/AdminFilterToolbar.vue'
 import AdminPagination from '@/components/admin/common/AdminPagination.vue'
@@ -121,6 +216,7 @@ import { resolveAdminDictionaryItem } from '@/config/adminDictionaries'
 import {
   listAdminGenerationRecords,
   type AdminGenerationRecordItem,
+  type AdminGenerationRefundStatusFilter,
   type AdminGenerationRecordStatusFilter,
   type AdminGenerationRecordTypeFilter,
 } from '@/api/admin-generation-records'
@@ -128,18 +224,41 @@ import { normalizeGenerationErrorMessage } from '@/shared/generation-error'
 
 type GenerationStatusFilter = AdminGenerationRecordStatusFilter
 type GenerationTypeFilter = AdminGenerationRecordTypeFilter
+type GenerationRefundStatusFilter = AdminGenerationRefundStatusFilter
 
 const formatGenerationError = (message?: string | null, fallback = '任务执行失败') => {
   return normalizeGenerationErrorMessage(String(message || '').trim(), fallback)
 }
 
 const filters = reactive<{
+  keyword: string
+  userKeyword: string
   type: GenerationTypeFilter
   status: GenerationStatusFilter
+  refundStatus: GenerationRefundStatusFilter
+  createdFrom: string
+  createdTo: string
 }>({
+  keyword: '',
+  userKeyword: '',
   type: 'all',
   status: 'all',
+  refundStatus: 'all',
+  createdFrom: '',
+  createdTo: '',
 })
+
+const filterDefaults = {
+  keyword: '',
+  userKeyword: '',
+  type: 'all' as GenerationTypeFilter,
+  status: 'all' as GenerationStatusFilter,
+  refundStatus: 'all' as GenerationRefundStatusFilter,
+  createdFrom: '',
+  createdTo: '',
+}
+
+const detailRecord = ref<AdminGenerationRecordItem | null>(null)
 
 const {
   loading,
@@ -151,8 +270,13 @@ const {
 } = useAdminList<AdminGenerationRecordItem>({
   initialPageSize: 10,
   fetcher: ({ page, pageSize }) => listAdminGenerationRecords({
+    keyword: filters.keyword,
+    userKeyword: filters.userKeyword,
     type: filters.type,
     status: filters.status,
+    refundStatus: filters.refundStatus,
+    createdFrom: filters.createdFrom,
+    createdTo: filters.createdTo,
     page,
     pageSize,
   }),
@@ -172,7 +296,16 @@ const statusOptions: Array<{ label: string; value: GenerationStatusFilter }> = [
   { label: '全部状态', value: 'all' },
   { label: resolveAdminDictionaryItem('generationStatus', 'completed').label, value: 'completed' },
   { label: resolveAdminDictionaryItem('generationStatus', 'failed').label, value: 'failed' },
+  { label: 'STOPPED', value: 'stopped' },
   { label: resolveAdminDictionaryItem('generationStatus', 'running').label, value: 'running' },
+]
+
+const refundStatusOptions: Array<{ label: string; value: GenerationRefundStatusFilter }> = [
+  { label: 'All refund states', value: 'all' },
+  { label: 'Refunded', value: 'refunded' },
+  { label: 'Pending review', value: 'pending_refund' },
+  { label: 'Not refundable', value: 'not_refundable' },
+  { label: 'Compensable', value: 'compensable' },
 ]
 
 const filterChipGroups = computed<AdminFilterChipGroup[]>(() => [
@@ -191,6 +324,10 @@ const filterChipGroups = computed<AdminFilterChipGroup[]>(() => [
 ])
 
 const getRecordStatus = (record: AdminGenerationRecordItem): GenerationStatusFilter => {
+  if (record.stopped) {
+    return 'stopped'
+  }
+
   if (record.error) {
     return 'failed'
   }
@@ -206,8 +343,13 @@ const completedCount = computed(() => records.value.filter((record) => getRecord
 const failedCount = computed(() => records.value.filter((record) => getRecordStatus(record) === 'failed').length)
 const activeFilterCount = computed(() => {
   return [
-    filters.type !== 'all',
-    filters.status !== 'all',
+    filters.keyword,
+    filters.userKeyword,
+    filters.type !== filterDefaults.type,
+    filters.status !== filterDefaults.status,
+    filters.refundStatus !== filterDefaults.refundStatus,
+    filters.createdFrom,
+    filters.createdTo,
   ].filter(Boolean).length
 })
 
@@ -219,6 +361,51 @@ const setType = (type: GenerationTypeFilter) => {
 const setStatus = (status: GenerationStatusFilter) => {
   filters.status = status
   void resetAndLoad()
+}
+
+const applyFilters = () => {
+  void resetAndLoad()
+}
+
+const resetFilters = () => {
+  Object.assign(filters, filterDefaults)
+  void resetAndLoad()
+}
+
+const openReadonlyDetail = (record: AdminGenerationRecordItem) => {
+  detailRecord.value = record
+}
+
+const closeReadonlyDetail = () => {
+  detailRecord.value = null
+}
+
+const formatPointAmount = (value?: number | null) => {
+  const amount = Number(value || 0)
+  return `${amount} pts`
+}
+
+const formatRefundStatus = (status?: string, isCompensable?: boolean) => {
+  if (isCompensable) return 'COMPENSABLE'
+  if (status === 'REFUNDED') return 'REFUNDED'
+  if (status === 'PENDING_REFUND') return 'PENDING_REFUND'
+  if (status === 'NOT_REFUNDABLE') return 'NOT_REFUNDABLE'
+  return 'UNKNOWN'
+}
+
+const formatCompensationSummary = (value?: string | null) => {
+  if (!value) return 'No compensation action suggested'
+  if (value === 'PENDING_REFUND') return 'Manual review may be needed'
+  if (value === 'REFUNDED') return 'Points already returned'
+  if (value === 'NOT_REFUNDABLE') return 'No point refund needed'
+  return value
+}
+
+const getRefundStatusClass = (status?: string, isCompensable?: boolean) => {
+  if (isCompensable || status === 'PENDING_REFUND') return 'is-warning'
+  if (status === 'REFUNDED') return 'is-success'
+  if (status === 'NOT_REFUNDABLE') return 'is-muted'
+  return 'is-muted'
 }
 
 const handleChipSelect = (payload: { groupKey: string; value: string }) => {
@@ -288,3 +475,131 @@ onMounted(() => {
   void loadRecords()
 })
 </script>
+
+<style scoped>
+.admin-generation-audit-search,
+.admin-generation-audit-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.admin-generation-audit-search .admin-input {
+  min-width: min(180px, 100%);
+  flex: 1 1 180px;
+}
+
+.admin-generation-audit-field {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: min(220px, 100%);
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-generation-audit-field .admin-input {
+  width: 100%;
+}
+
+.admin-generation-audit-panel,
+.admin-generation-audit-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-generation-audit-panel__item,
+.admin-generation-audit-detail-grid section,
+.admin-generation-audit-log {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--bg-block-secondary-default);
+}
+
+.admin-generation-audit-panel__item span,
+.admin-generation-audit-detail-grid span {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.admin-generation-audit-panel__item strong,
+.admin-generation-audit-detail-grid strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.admin-generation-audit-panel__item small,
+.admin-generation-audit-log small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-tertiary);
+  overflow-wrap: anywhere;
+}
+
+.admin-generation-audit-panel__item strong.is-success { color: var(--function-success-default, #12b76a); }
+.admin-generation-audit-panel__item strong.is-warning { color: var(--function-warning-default, #f59e0b); }
+.admin-generation-audit-panel__item strong.is-muted { color: var(--text-tertiary); }
+
+.admin-generation-card__footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-generation-audit-dialog {
+  width: min(760px, 100%);
+}
+
+.admin-generation-audit-detail-section {
+  margin-top: 16px;
+}
+
+.admin-generation-audit-detail-section h5 {
+  margin: 0 0 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.admin-generation-audit-detail-section p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.admin-generation-audit-log-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-generation-audit-log {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-generation-audit-log span {
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 960px) {
+  .admin-generation-audit-panel,
+  .admin-generation-audit-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-generation-card__footer-actions {
+    justify-content: flex-start;
+  }
+}
+</style>
