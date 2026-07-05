@@ -17,6 +17,12 @@ export interface AdminAuditLogItem {
   action: string
   targetType: string
   targetId: string
+  businessModule: string
+  actionLabel: string
+  businessSummary: string
+  targetLabel: string
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | string
+  changeSummary: string[]
   beforeJsonPreview: string | null
   afterJsonPreview: string | null
   ipAddress: string
