@@ -28,6 +28,7 @@ import {
   type PersistedGenerationSession,
 } from '@/api/generation-sessions'
 import { createGenerationTask, resolveGenerationTaskModel, stopGenerationTask, subscribeGenerationTaskEvents, type GenerationTaskStreamEvent } from '@/api/generation-tasks'
+import { getGenerationPreflightStatus, type GenerationPreflightStatus } from '@/api/generation-preflight-status'
 import type { CreationType } from '../../components/generate/selectors'
 import type {
   AgentRunState,
@@ -170,6 +171,8 @@ const researchSearchRevealQueues = new Map<string, ResearchSearchSourceViewItem[
 const researchUiRevealTimers = new Map<number, ReturnType<typeof setTimeout>>()
 const researchUiRevealQueues = new Map<number, Array<() => void>>()
 const taskStreamControllers = new Map<string, AbortController>()
+const generationPreflightStatus = ref<GenerationPreflightStatus | null>(null)
+const generationPreflightLoading = ref(true)
 const previewVisible = ref(false)
 const previewIndex = ref(0)
 const previewImages = ref<GeneratePreviewImageItem[]>([])
@@ -1002,7 +1005,68 @@ onMounted(() => {
   void loadPublicModelCatalog()
   void loadPublicSkillCatalog()
   void loadPublicSettings()
+  void loadGenerationPreflightStatus()
 })
+
+const buildUnavailableGenerationPreflightStatus = (message = '当前生成服务暂不可用。'): GenerationPreflightStatus => ({
+  readonly: true,
+  generatedAt: new Date().toISOString(),
+  databaseConfigured: false,
+  generationAvailable: false,
+  noCallMode: true,
+  status: 'NO_CALL_BLOCKED',
+  userTitle: '生成暂不可用',
+  userMessage: message,
+  actionHint: '请等待管理员完成 no-call 预检和真实生成授权后再使用。',
+  blockedReasons: ['PREFLIGHT_STATUS_UNAVAILABLE'],
+  providerSummary: {
+    hasEnabledProvider: false,
+    enabledProviderCount: 0,
+  },
+  modelSummary: {
+    hasEnabledModel: false,
+    enabledModelCount: 0,
+    enabledImageModelCount: 0,
+    enabledChatModelCount: 0,
+    pricedModelCount: 0,
+  },
+  gateSummary: {
+    providerGateName: 'generation-provider-execution',
+    storageGateName: 'generation-storage-upload',
+    realProviderGenerationAllowed: false,
+    realStorageUploadAllowed: false,
+  },
+  willCallExternal: false,
+  willCallProvider: false,
+  willUploadStorage: false,
+  willCreateGenerationTask: false,
+  willChargePoints: false,
+  realProviderGenerationAllowed: false,
+  realStorageUploadAllowed: false,
+})
+
+const loadGenerationPreflightStatus = async () => {
+  generationPreflightLoading.value = true
+  try {
+    generationPreflightStatus.value = await getGenerationPreflightStatus()
+  } catch {
+    generationPreflightStatus.value = buildUnavailableGenerationPreflightStatus(
+        '生成状态预检暂时不可用，页面已按 no-call 保护阻止提交。'
+    )
+  } finally {
+    generationPreflightLoading.value = false
+  }
+}
+
+const isGenerationSubmitBlockedByPreflight = () => (
+  generationPreflightLoading.value || generationPreflightStatus.value?.generationAvailable !== true
+)
+
+const getGenerationPreflightBlockMessage = () => (
+  generationPreflightLoading.value
+    ? '正在检查生成服务状态，请稍后再试。'
+    : generationPreflightStatus.value?.userMessage || '当前生成服务暂不可用。'
+)
 
 const buildPreviewImagesFromRecord = (record: GeneratingRecord): GeneratePreviewImageItem[] => {
   return (record.images || []).map((imageUrl, index) => ({
@@ -2561,6 +2625,11 @@ const handleSend = async (message: string, type: CreationType, options?: { model
     return
   }
 
+  if (isGenerationSubmitBlockedByPreflight()) {
+    ElMessage.warning(getGenerationPreflightBlockMessage())
+    return
+  }
+
   const activeSession = await ensureCurrentGenerationSession()
   if (!activeSession) {
     return
@@ -3071,6 +3140,8 @@ onUnmounted(() => {
           <ContentGenerator
               ref="contentGeneratorRef"
               :default-expanded="true"
+              :generation-preflight-status="generationPreflightStatus"
+              :generation-preflight-loading="generationPreflightLoading"
               @send="handleSend"
           />
         </template>
@@ -3170,6 +3241,8 @@ onUnmounted(() => {
           <ContentGenerator
               ref="contentGeneratorRef"
               :default-expanded="true"
+              :generation-preflight-status="generationPreflightStatus"
+              :generation-preflight-loading="generationPreflightLoading"
               @send="handleSend"
           />
           <div style=height:1px></div>

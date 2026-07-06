@@ -39,6 +39,8 @@ import { isGenerationSessionsPath } from './generation-sessions/constants'
 import { handleGenerationSessionsRequest } from './generation-sessions/request-handler'
 import { isGenerationTasksPath } from './generation-tasks/constants'
 import { handleGenerationTasksRequest } from './generation-tasks/request-handler'
+import { isGenerationPreflightStatusPath } from './generation-preflight-status/constants'
+import { handleGenerationPreflightStatusRequest } from './generation-preflight-status/request-handler'
 import { PROVIDER_CONFIG_MATCH_PATHS } from './provider-config/constants'
 import { handleProviderConfigRequest } from './provider-config/request-handler'
 import { isStorageConfigsPath } from './storage-config/constants'
@@ -436,6 +438,14 @@ const REQUEST_ROUTE_STRATEGIES: RequestRouteStrategy[] = [
     match: isGenerationTasksPath,
     handle: async (req, res) => {
       await handleGenerationTasksRequest(req, res)
+      return true
+    },
+  },
+  {
+    key: 'generation-preflight-status',
+    match: isGenerationPreflightStatusPath,
+    handle: async (req, res) => {
+      await handleGenerationPreflightStatusRequest(req, res)
       return true
     },
   },

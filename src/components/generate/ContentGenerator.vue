@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { ElMessage } from 'element-plus'
 import { ref, computed, nextTick, onUnmounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useLoginModalStore } from '@/stores/login-modal'
 import { useSystemSettingsStore } from '@/stores/system-settings'
 import { getModelByName } from '@/config/models'
+import type { GenerationPreflightStatus } from '@/api/generation-preflight-status'
 import type { ModelCapabilityFlags } from '@/shared/provider-capability'
 
 // 导入子组件
@@ -41,6 +43,9 @@ interface Props {
   initialCreationType?: CreationType
   /** 展示变体：首页可使用差异化按钮样式 */
   variant?: SurfaceVariant
+  /** 普通用户生成链路只读预检状态；不可用时仅展示提示并阻止提交。 */
+  generationPreflightStatus?: GenerationPreflightStatus | null
+  generationPreflightLoading?: boolean
 }
 
 interface GeneratorSendOptions {
@@ -97,7 +102,9 @@ const props = withDefaults(defineProps<Props>(), {
   externalPrompt: undefined,
   promptSyncKey: undefined,
   initialCreationType: undefined,
-  variant: 'home'
+  variant: 'home',
+  generationPreflightStatus: null,
+  generationPreflightLoading: false,
 })
 
 // 事件定义
@@ -282,6 +289,32 @@ const handleInput = (e: Event) => {
 }
 
 // 处理键盘事件（回车发送）
+const generationSubmitBlocked = computed(() => {
+  if (props.generationPreflightLoading) {
+    return true
+  }
+  return props.generationPreflightStatus?.generationAvailable === false
+})
+
+const generationAvailabilityMessage = computed(() => {
+  if (props.generationPreflightLoading) {
+    return '正在检查生成服务状态。'
+  }
+  if (props.generationPreflightStatus?.generationAvailable === false) {
+    return props.generationPreflightStatus.userMessage
+      || '当前处于默认 no-call 预检阶段，真实生成暂不可用；页面不会创建任务、扣积分或上传存储。'
+  }
+  return ''
+})
+
+const generationAvailabilityHint = computed(() => {
+  if (props.generationPreflightStatus?.generationAvailable === false) {
+    return props.generationPreflightStatus.actionHint
+      || '请等待管理员完成 Provider 健康检查并明确授权真实生成 gate。'
+  }
+  return ''
+})
+
 const handleKeydown = (e: KeyboardEvent) => {
   // Enter 发送，Shift+Enter 换行
   if (e.key === 'Enter' && !e.shiftKey) {
@@ -298,6 +331,11 @@ const handleSubmit = () => {
   // 未登录时直接弹出登录框，并保留当前输入内容。
   if (!authStore.isLoggedIn.value) {
     openLoginModal('content-generator-submit')
+    return
+  }
+
+  if (generationSubmitBlocked.value) {
+    ElMessage.warning(generationAvailabilityMessage.value || '当前生成暂不可用。')
     return
   }
 
@@ -342,7 +380,7 @@ const handleSubmit = () => {
 }
 
 // 是否禁用提交按钮
-const isSubmitDisabled = computed(() => !inputValue.value.trim())
+const isSubmitDisabled = computed(() => !inputValue.value.trim() || generationSubmitBlocked.value)
 
 const getActiveAgentToolbar = () =>
   (agentToolbarExpandRef.value || agentToolbarRef.value) as ExposedAgentToolbarInstance | null
@@ -1073,6 +1111,16 @@ onUnmounted(() => {
 
         <!-- 折叠状态下的提交按钮 -->
         <div
+          v-if="generationAvailabilityMessage && !isCollapsed"
+          class="generation-preflight-notice"
+          role="status"
+        >
+          <strong>{{ props.generationPreflightStatus?.userTitle || '生成状态' }}</strong>
+          <span>{{ generationAvailabilityMessage }}</span>
+          <em v-if="generationAvailabilityHint">{{ generationAvailabilityHint }}</em>
+        </div>
+
+        <div
           v-if="workbenchSettings.showSubmitButton !== false"
           :class="[submitButtonContainerClass, { 'collapsed-WjKggt collapsed-HnZBhi': isCollapsed, [hasReferencesClass]: hasReferences }]"
         >
@@ -1092,6 +1140,7 @@ onUnmounted(() => {
           <div>
             <button :class="['lv-btn', 'lv-btn-primary', 'lv-btn-size-default', 'lv-btn-shape-circle', 'lv-btn-icon-only', 'button-lc3WzE', 'submit-button-KJTUYS', collapsedSubmitButtonClass, { 'collapsed-WjKggt': isCollapsed, 'expand-transition-start': !isCollapsed, 'lv-btn-disabled': isSubmitDisabled, 'home-submit-button': isHomeVariant }]"
                     :disabled="isSubmitDisabled"
+                    :title="generationAvailabilityMessage || '提交生成'"
                     type="button"
                     @click.stop="handleSubmit">
               <svg v-if="isHomeVariant"
@@ -1244,6 +1293,7 @@ onUnmounted(() => {
           <div>
             <button :class="['lv-btn', 'lv-btn-primary', 'lv-btn-size-default', 'lv-btn-shape-circle', 'lv-btn-icon-only', 'button-lc3WzE', 'submit-button-KJTUYS', 'submit-button-z7zxBM', isSidebar ? 'submit-button-qiVtq5' : 'submit-button-CpjScj submit-button-wD1gIc', { 'collapsed-WjKggt': isCollapsed, 'expand-transition-start': !isCollapsed, 'lv-btn-disabled': isSubmitDisabled, 'home-submit-button': isHomeVariant }]"
                     :disabled="isSubmitDisabled"
+                    :title="generationAvailabilityMessage || '提交生成'"
                     type="button"
                     @click.stop="handleSubmit">
               <!-- 首页按钮使用更接近参考图的直箭头图标 -->
@@ -1286,6 +1336,31 @@ onUnmounted(() => {
 <style>
 /* 引入全局样式，不使用 scoped */
 @import "../../views/generate/generate.css";
+
+.generation-preflight-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 8px 12px 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(239, 68, 68, .22);
+  border-radius: 8px;
+  background: rgba(254, 242, 242, .92);
+  color: #7f1d1d;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.generation-preflight-notice strong {
+  font-weight: 700;
+}
+
+.generation-preflight-notice em {
+  color: #991b1b;
+  font-style: normal;
+}
 
 /* 统一新版发送按钮样式：普通布局走反转圆钮，侧边栏保持原样 */
 .dimension-layout-FUl4Nj .home-submit-button.lv-btn.lv-btn-primary {
