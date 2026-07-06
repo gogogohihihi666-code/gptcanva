@@ -39,6 +39,11 @@
       </template>
     </AdminFilterToolbar>
 
+    <div class="admin-danger-notice">
+      <strong>默认 no-call 保护已开启</strong>
+      <span>存储测试会被后端 gate 阻断；该操作可能真实上传、读取或删除对象，必须先获得人工授权 gate。</span>
+    </div>
+
     <div class="admin-grid admin-grid--stats">
       <div class="admin-stat-card">
         <div class="admin-stat-card__label">配置总数</div>
@@ -401,6 +406,38 @@ const openEditDialog = (config: StorageConfigItem) => {
   dialogVisible.value = true
 }
 
+const isPlaceholderConfigValue = (value: string) => {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (!normalized) return false
+  return /example|placeholder|your-|your_|change-me|changeme|todo|demo|填写|示例/.test(normalized)
+}
+
+const readConfiguredState = (value: string) => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return '未配置'
+  return isPlaceholderConfigValue(normalized) ? '疑似占位' : '已配置'
+}
+
+const confirmStorageDangerousAction = (input: {
+  title: string
+  target: string
+  risk: string
+  endpoint?: string
+  bucket?: string
+  writesConfig?: boolean
+}) => {
+  return window.confirm([
+    input.title,
+    `目标：${input.target || '未识别'}`,
+    `Endpoint：${readConfiguredState(input.endpoint || '')}`,
+    `Bucket：${readConfiguredState(input.bucket || '')}`,
+    `风险：${input.risk}`,
+    '默认 no-call：未获得人工授权 gate 时后端会阻断真实上传或删除。',
+    input.writesConfig ? '本操作会修改 Storage 配置。' : '本操作不应修改配置，但可能真实上传、读取或删除对象。',
+    '确认继续？',
+  ].join('\n'))
+}
+
 const buildPayload = (): StorageConfigPayload => ({
   name: form.name,
   code: form.code,
@@ -417,6 +454,17 @@ const buildPayload = (): StorageConfigPayload => ({
 })
 
 const handleSubmit = async () => {
+  if (!confirmStorageDangerousAction({
+    title: editingId.value ? '确认保存 Storage 配置' : '确认创建 Storage 配置',
+    target: form.code || form.name,
+    risk: '会写入对象存储配置；不会自动执行测试上传。',
+    endpoint: form.endpoint,
+    bucket: form.bucket,
+    writesConfig: true,
+  })) {
+    return
+  }
+
   submitting.value = true
   try {
     if (editingId.value) {
@@ -434,6 +482,18 @@ const handleSubmit = async () => {
 
 // 启用成功后重新拉一次列表，确保后台状态与服务端保持一致。
 const handleActivate = async (id: string) => {
+  const config = configs.value.find(item => item.id === id)
+  if (!confirmStorageDangerousAction({
+    title: '确认启用 Storage 配置',
+    target: config?.code || config?.name || id,
+    risk: '会修改当前生效的对象存储配置。',
+    endpoint: config?.endpoint || '',
+    bucket: config?.bucket || '',
+    writesConfig: true,
+  })) {
+    return
+  }
+
   activatingId.value = id
   try {
     await activateStorageConfig(id)
@@ -444,6 +504,17 @@ const handleActivate = async (id: string) => {
 }
 
 const handleTest = async (id: string) => {
+  const config = configs.value.find(item => item.id === id)
+  if (!confirmStorageDangerousAction({
+    title: '确认执行 Storage 测试',
+    target: config?.code || config?.name || id,
+    risk: '可能真实上传、读取或删除对象。',
+    endpoint: config?.endpoint || '',
+    bucket: config?.bucket || '',
+  })) {
+    return
+  }
+
   testingId.value = id
   try {
     testResults[id] = await testStorageConfig(id)
@@ -463,3 +534,24 @@ onMounted(() => {
   void loadConfigs()
 })
 </script>
+
+<style scoped>
+.admin-danger-notice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(239, 68, 68, 0.24);
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.admin-danger-notice strong {
+  color: var(--function-danger-default, #dc2626);
+}
+</style>

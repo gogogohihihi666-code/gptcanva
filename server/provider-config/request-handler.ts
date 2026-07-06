@@ -4,6 +4,7 @@ import { requireAdminSessionUser } from '../auth/session'
 import { REDIS_CONFIG, consumeFixedWindowRateLimit, getRedisRuntimeSettings } from '../redis'
 import { recordAdminAuditLog } from '../shared/admin-audit'
 import { invalidateAdminCaches } from '../shared/admin-cache'
+import { isAdminNoCallGateBlockedError } from '../no-call/admin-dangerous-action-gate'
 import {
   createAdminProvider,
   deleteAdminProvider,
@@ -353,7 +354,9 @@ export const handleProviderConfigRequest = async (req: any, res: any) => {
 
     sendProviderRuntimeError(res, 405, 'Method Not Allowed')
   } catch (error: any) {
-    const statusCode = error instanceof ProviderConfigRequestError
+    const statusCode = isAdminNoCallGateBlockedError(error)
+      ? 403
+      : error instanceof ProviderConfigRequestError
       ? error.statusCode
       : 500
     sendProviderRuntimeError(res, statusCode, error?.message || '读取配置失败')

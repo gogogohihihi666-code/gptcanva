@@ -2,6 +2,7 @@ import { sendJson } from '../ai-gateway/shared'
 import { isPrismaConfigured } from '../db/prisma'
 import { requireAdminSessionUser } from '../auth/session'
 import { recordAdminAuditLog } from '../shared/admin-audit'
+import { isAdminNoCallGateBlockedError } from '../no-call/admin-dangerous-action-gate'
 import { STORAGE_CONFIGS_BASE_PATH } from './constants'
 import { readStorageConfigBody, sendStorageConfigError } from './shared'
 import {
@@ -12,7 +13,6 @@ import {
   updateObjectStorageConfig,
 } from './service'
 
-// 处理对象存储配置请求。
 export const handleStorageConfigRequest = async (req: any, res: any) => {
   try {
     if (!isPrismaConfigured()) {
@@ -35,7 +35,7 @@ export const handleStorageConfigRequest = async (req: any, res: any) => {
       ? decodeURIComponent(suffix.slice(0, -('/activate'.length)))
       : isTestPath
         ? decodeURIComponent(suffix.slice(0, -('/test'.length)))
-      : decodeURIComponent(suffix)
+        : decodeURIComponent(suffix)
 
     if (req.method === 'GET' && requestUrl === STORAGE_CONFIGS_BASE_PATH) {
       const data = await listObjectStorageConfigs()
@@ -98,6 +98,7 @@ export const handleStorageConfigRequest = async (req: any, res: any) => {
 
     sendStorageConfigError(res, 405, 'Method Not Allowed')
   } catch (error: any) {
-    sendStorageConfigError(res, 500, error?.message || '处理对象存储配置失败')
+    const statusCode = isAdminNoCallGateBlockedError(error) ? 403 : 500
+    sendStorageConfigError(res, statusCode, error?.message || '处理对象存储配置失败')
   }
 }

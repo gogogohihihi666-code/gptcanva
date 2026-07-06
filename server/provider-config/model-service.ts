@@ -1,6 +1,7 @@
 import type { ModelCategory } from '@prisma/client'
 import { prisma } from '../db/prisma'
 import { getOrSetJsonCache, invalidateRedisCaches, redisKeys } from '../redis'
+import { assertDangerousAdminActionAllowed } from '../no-call/admin-dangerous-action-gate'
 import { ensureProviderSeedData, getAdminProviderDetail } from './service'
 
 export interface ProviderModelPayload {
@@ -227,6 +228,7 @@ const buildProviderDiscoverCacheKey = (providerId: string) => redisKeys.cache('p
 
 // 读取上游 /v1/models 结果，供后台批量选择导入。
 export const discoverProviderModels = async (providerId: string) => {
+  assertDangerousAdminActionAllowed('provider-model-discovery')
   const normalizedProviderId = await assertProviderExists(providerId)
   return getOrSetJsonCache({
     key: buildProviderDiscoverCacheKey(normalizedProviderId),
@@ -287,6 +289,7 @@ export const invalidateProviderDiscoverModelsCache = async (providerId?: string)
 }
 
 export const testProviderConnectivity = async (providerId: string) => {
+  assertDangerousAdminActionAllowed('provider-connectivity-test')
   const normalizedProviderId = await assertProviderExists(providerId)
   const { baseUrl, apiKey, provider } = await getProviderRuntimeConnection(normalizedProviderId)
   const supportedTypes = Array.isArray(provider.supportedTypes) ? provider.supportedTypes : []

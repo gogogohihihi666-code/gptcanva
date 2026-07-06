@@ -1,5 +1,6 @@
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { prisma } from '../db/prisma'
+import { assertDangerousAdminActionAllowed } from '../no-call/admin-dangerous-action-gate'
 import {
   decryptStorageAccessKey,
   decryptStorageSecretKey,
@@ -341,6 +342,7 @@ export const activateObjectStorageConfig = async (id: string) => {
 }
 
 export const testObjectStorageConfig = async (id: string) => {
+  assertDangerousAdminActionAllowed('storage-connectivity-test')
   const existing = await prisma.objectStorageConfig.findUnique({
     where: { id },
   })

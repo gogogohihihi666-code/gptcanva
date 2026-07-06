@@ -38,6 +38,11 @@
       </template>
     </AdminFilterToolbar>
 
+    <div class="admin-danger-notice">
+      <strong>默认 no-call 保护已开启</strong>
+      <span>测试连接、模型发现会被后端 gate 阻断；这些操作可能真实调用上游 Provider，必须先获得人工授权 gate。</span>
+    </div>
+
     <div class="admin-provider-grid">
       <button class="admin-provider-create-card" type="button" @click="openCreateProviderDialog">
         <div class="admin-provider-create-card__plus">+</div>
@@ -938,6 +943,16 @@ const buildProviderPayload = (): AdminProviderPayload => ({
 })
 
 const handleSaveProvider = async () => {
+  if (!confirmProviderDangerousAction({
+    title: editingProviderId.value ? '确认保存 Provider 配置' : '确认创建 Provider 配置',
+    target: providerForm.code || providerForm.name,
+    risk: '会写入 Provider 配置；不会自动测试连接。',
+    baseUrl: providerForm.baseUrl,
+    writesConfig: true,
+  })) {
+    return
+  }
+
   providerSaving.value = true
   try {
     const payload = buildProviderPayload()
@@ -969,6 +984,36 @@ const closeProviderMenu = () => {
   activeProviderMenuId.value = ''
 }
 
+const isPlaceholderConfigValue = (value: string) => {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (!normalized) return false
+  return /example|placeholder|your-|your_|change-me|changeme|todo|demo|填写|示例/.test(normalized)
+}
+
+const readConfiguredState = (value: string) => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return '未配置'
+  return isPlaceholderConfigValue(normalized) ? '疑似占位' : '已配置'
+}
+
+const confirmProviderDangerousAction = (input: {
+  title: string
+  target: string
+  risk: string
+  baseUrl?: string
+  writesConfig?: boolean
+}) => {
+  return window.confirm([
+    input.title,
+    `目标：${input.target || '未识别'}`,
+    `Base URL：${readConfiguredState(input.baseUrl || '')}`,
+    `风险：${input.risk}`,
+    '默认 no-call：未获得人工授权 gate 时后端会阻断真实外呼。',
+    input.writesConfig ? '本操作会修改 Provider / Model 配置。' : '本操作不应修改配置，但可能真实调用上游 Provider。',
+    '确认继续？',
+  ].join('\n'))
+}
+
 const toggleProviderMenu = (providerId: string) => {
   activeProviderMenuId.value = activeProviderMenuId.value === providerId ? '' : providerId
 }
@@ -985,6 +1030,15 @@ const handleProviderMenuManageModels = async (provider: AdminProviderItem) => {
 
 const handleProviderMenuTest = async (provider: AdminProviderItem) => {
   closeProviderMenu()
+  if (!confirmProviderDangerousAction({
+    title: '确认执行 Provider 测试连接',
+    target: provider.code || provider.name,
+    risk: '可能真实调用上游 Provider 的 models/chat/image/image edit 接口。',
+    baseUrl: provider.baseUrl,
+  })) {
+    return
+  }
+
   testingProviderId.value = provider.id
   try {
     providerTestResults[provider.id] = await testAdminProviderConnectivity(provider.id)
@@ -1001,6 +1055,16 @@ const handleProviderMenuDelete = async (provider: AdminProviderItem) => {
 }
 
 const handleDeleteProvider = async (provider: AdminProviderItem) => {
+  if (!confirmProviderDangerousAction({
+    title: '确认删除 Provider 配置',
+    target: provider.code || provider.name,
+    risk: '会删除 Provider 及其模型配置。',
+    baseUrl: provider.baseUrl,
+    writesConfig: true,
+  })) {
+    return
+  }
+
   if (!window.confirm(`确认删除厂商“${provider.name}”吗？删除后其模型也会一起删除。`)) {
     return
   }
@@ -1067,6 +1131,15 @@ const openDiscoverModelsDialog = async () => {
   }
 
   try {
+    if (!confirmProviderDangerousAction({
+      title: '确认执行模型发现',
+      target: selectedProvider.value.code || selectedProvider.value.name,
+      risk: '可能真实请求上游 Provider 的 /v1/models。',
+      baseUrl: selectedProvider.value.baseUrl,
+    })) {
+      return
+    }
+
     discoveringModels.value = true
     resetDiscoverState()
     const result = await discoverAdminProviderModels(selectedProvider.value.id)
@@ -1113,6 +1186,16 @@ const handleBatchImportModels = async () => {
   }
 
   try {
+    if (!confirmProviderDangerousAction({
+      title: '确认批量导入模型',
+      target: selectedProvider.value.code || selectedProvider.value.name,
+      risk: `会新建或更新 ${selectedItems.length} 个模型配置。`,
+      baseUrl: selectedProvider.value.baseUrl,
+      writesConfig: true,
+    })) {
+      return
+    }
+
     discoverImporting.value = true
     const payloadItems = selectedItems.map((item, index) => ({
       category: discoverBatchSettings.category,
@@ -1221,6 +1304,16 @@ const handleSaveModel = async () => {
   }
 
   try {
+    if (!confirmProviderDangerousAction({
+      title: editingModelId.value ? '确认保存模型配置' : '确认创建模型配置',
+      target: `${selectedProvider.value.code || selectedProvider.value.name} / ${modelForm.modelKey || modelForm.label}`,
+      risk: '会写入模型配置、启用状态或计费参数。',
+      baseUrl: selectedProvider.value.baseUrl,
+      writesConfig: true,
+    })) {
+      return
+    }
+
     modelSaving.value = true
     const payload = buildModelPayload()
     if (editingModelId.value) {
@@ -1243,6 +1336,16 @@ const toggleModelEnabled = async (model: AdminProviderModelItem) => {
     return
   }
 
+  if (!confirmProviderDangerousAction({
+    title: model.isEnabled ? '确认禁用模型' : '确认启用模型',
+    target: `${selectedProvider.value.code || selectedProvider.value.name} / ${model.modelKey}`,
+    risk: '会修改模型启用状态，可能影响生成入口 gate。',
+    baseUrl: selectedProvider.value.baseUrl,
+    writesConfig: true,
+  })) {
+    return
+  }
+
   await updateAdminProviderModel(selectedProvider.value.id, model.id, {
     category: model.category,
     label: model.label,
@@ -1258,6 +1361,16 @@ const toggleModelEnabled = async (model: AdminProviderModelItem) => {
 }
 
 const handleDeleteModel = async (model: AdminProviderModelItem) => {
+  if (selectedProvider.value && !confirmProviderDangerousAction({
+    title: '确认删除模型配置',
+    target: `${selectedProvider.value.code || selectedProvider.value.name} / ${model.modelKey}`,
+    risk: '会删除模型配置。',
+    baseUrl: selectedProvider.value.baseUrl,
+    writesConfig: true,
+  })) {
+    return
+  }
+
   if (!selectedProvider.value) {
     return
   }
@@ -1286,6 +1399,25 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.admin-danger-notice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(239, 68, 68, 0.24);
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.admin-danger-notice strong {
+  color: var(--function-danger-default, #dc2626);
+}
+
 .admin-model-discover__toolbar {
   display: flex;
   align-items: center;
