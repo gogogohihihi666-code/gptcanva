@@ -1501,13 +1501,22 @@ onUnmounted(() => {
     min-width: 0;
   }
 
+  .dimension-layout-FUl4Nj .prompt-editor-container-HRhsP7,
+  .dimension-layout-FUl4Nj .prompt-editor-aDwTfA,
+  .dimension-layout-FUl4Nj .toolbar-k7Mdy_,
+  .dimension-layout-FUl4Nj .toolbar-actions-pDJQS6 {
+    min-width: 0;
+  }
+
   .generation-preflight-notice {
     margin: 8px 8px 0;
     max-width: calc(100vw - 40px);
+    width: 100%;
   }
 
   .generation-preflight-summary {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .generation-preflight-summary__item {

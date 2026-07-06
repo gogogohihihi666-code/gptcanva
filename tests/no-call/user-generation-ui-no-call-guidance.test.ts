@@ -103,6 +103,29 @@ describe('user generation no-call guidance', () => {
     assert.ok(index.indexOf('generation-preflight-status') < index.indexOf('frontend-static'))
   })
 
+  it('keeps /generate no-call guidance usable in narrow mobile layouts', () => {
+    const page = readText('src/views/generate/generate.vue')
+    const pageCss = readText('src/views/generate/generate.css')
+    const generator = readText('src/components/generate/ContentGenerator.vue')
+
+    assert.match(pageCss, /@media screen and \(max-width:\s*640px\)/)
+    assert.match(pageCss, /\.global-dreamina-container[\s\S]*min-width:\s*0/)
+    assert.match(pageCss, /\.entry-erESAd[\s\S]*min-width:\s*0/)
+    assert.match(pageCss, /\.content-wrapper-cF1zaN[\s\S]*min-width:\s*0/)
+    assert.match(pageCss, /\.main-container-nXfW_A[\s\S]*min-width:\s*0/)
+    assert.match(pageCss, /\.content-TZbgMr[\s\S]*min-width:\s*0/)
+    assert.match(pageCss, /\.generate-conversation-sidebar[\s\S]*display:\s*none/)
+    assert.match(pageCss, /\.main-content-G632JF\.new-conversation\.with-sidebar[\s\S]*padding-left:\s*0/)
+    assert.match(pageCss, /\.main-content-G632JF\.new-conversation\.with-sidebar[\s\S]*width:\s*100%/)
+    assert.match(page, /main-content-G632JF\.new-conversation\.with-sidebar/)
+    assert.match(generator, /generation-preflight-notice/)
+    assert.match(generator, /generation-preflight-summary/)
+    assert.match(generator, /@media screen and \(max-width: 640px\)/)
+    assert.match(generator, /\.dimension-layout-FUl4Nj[\s\S]*min-width:\s*0/)
+    assert.match(generator, /\.generation-preflight-notice[\s\S]*width:\s*100%/)
+    assert.match(generator, /\.generation-preflight-summary[\s\S]*grid-template-columns:\s*1fr/)
+  })
+
   it('returns user-safe readiness summaries for provider, model, storage, and no-call gates', () => {
     const overview = __generationPreflightStatusTestHooks.buildGenerationPreflightStatusFromRecords({
       providers: [{

@@ -1,5 +1,5 @@
 <template>
-  <aside v-if="!collapsed" class="sidebar">
+  <aside v-if="!collapsed" class="sidebar generate-conversation-sidebar">
     <div class="header-MPVCyQ">
       <div class="header-left-sIxFfE">
         <span class="title-text-RdcKCa">{{ title }}</span>

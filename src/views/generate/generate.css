@@ -53,6 +53,64 @@
     width: 100%
 }
 
+@media screen and (max-width: 640px) {
+    .generate-page-shell #csr-root,
+    .generate-page-shell .global-dreamina-container,
+    .generate-page-shell .root_bf55f,
+    .generate-page-shell .top-down-layer,
+    .generate-page-shell .container-moSF_y,
+    .generate-page-shell .content-wrapper-cF1zaN,
+    .generate-page-shell .main-container-nXfW_A,
+    .generate-page-shell .content-TZbgMr,
+    .generate-page-shell .entry-erESAd {
+        box-sizing: border-box;
+        max-width: 100vw;
+        min-width: 0;
+        width: 100%
+    }
+
+    .generate-page-shell #csr-root,
+    .generate-page-shell .global-dreamina-container {
+        min-height: 100dvh
+    }
+
+    .generate-page-shell .container-moSF_y {
+        display: block
+    }
+
+    .generate-page-shell .side-menu,
+    .generate-page-shell .generate-conversation-sidebar {
+        display: none
+    }
+
+    .generate-page-shell .content-wrapper-cF1zaN,
+    .generate-page-shell .main-container-nXfW_A,
+    .generate-page-shell .content-TZbgMr {
+        height: 100%;
+        min-height: 0
+    }
+
+    .generate-page-shell .content-TZbgMr {
+        overflow-y: auto !important
+    }
+
+    .generate-page-shell .entry-erESAd {
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible
+    }
+
+    .generate-page-shell .main-content-G632JF {
+        min-width: 0;
+        width: 100%
+    }
+
+    .generate-page-shell .main-content-G632JF.new-conversation.with-sidebar {
+        padding-left: 0;
+        width: 100%
+    }
+}
+
 @media screen and (max-height: 799px) {
     
 }
