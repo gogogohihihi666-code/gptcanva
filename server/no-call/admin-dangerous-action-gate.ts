@@ -2,6 +2,8 @@ export type AdminDangerousAction =
   | 'provider-connectivity-test'
   | 'provider-model-discovery'
   | 'storage-connectivity-test'
+  | 'generation-provider-execution'
+  | 'generation-storage-upload'
 
 interface AdminDangerousActionConfig {
   gateName: string
@@ -26,6 +28,18 @@ const ACTION_CONFIGS: Record<AdminDangerousAction, AdminDangerousActionConfig> =
   'storage-connectivity-test': {
     gateName: 'OBJECT_STORAGE_REAL_TEST_ALLOWED',
     description: '对象存储测试',
+    willCallProvider: false,
+    willUploadStorage: true,
+  },
+  'generation-provider-execution': {
+    gateName: 'AI_PROVIDER_REAL_GENERATION_ALLOWED',
+    description: '鐢熸垚浠诲姟 Provider 鎵ц',
+    willCallProvider: true,
+    willUploadStorage: false,
+  },
+  'generation-storage-upload': {
+    gateName: 'OBJECT_STORAGE_REAL_UPLOAD_ALLOWED',
+    description: '鐢熸垚缁撴灉瀵硅薄瀛樺偍涓婁紶',
     willCallProvider: false,
     willUploadStorage: true,
   },

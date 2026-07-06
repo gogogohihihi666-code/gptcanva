@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { getPublicModelCatalog, resolveGatewayProviderUpstream } from '../provider-config/service'
+import { assertDangerousAdminActionAllowed } from '../no-call/admin-dangerous-action-gate'
 import { getUploadsDir } from '../storage/service'
 import { buildAgentChatMessages } from '../../src/shared/agent-skills-core'
 import { normalizeGenerationErrorMessage } from '../../src/shared/generation-error'
@@ -196,6 +197,8 @@ const isBurstRateLimitedResponse = (status: number, responseText: string) => {
 }
 
 export const fetchWithBurstRateRetry = async (input: FetchWithBurstRateRetryInput) => {
+  assertDangerousAdminActionAllowed('generation-provider-execution')
+
   let networkErrorAttempt = 0
 
   for (let attemptIndex = 0; attemptIndex <= BURST_RATE_RETRY_DELAYS.length; attemptIndex += 1) {

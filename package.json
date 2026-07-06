@@ -16,7 +16,7 @@
     "start:server:local": "tsx --env-file=.env.development server/index.ts",
     "storage:mkdir": "node -e \"require('node:fs').mkdirSync('uploads',{recursive:true})\"",
     "type-check": "vue-tsc --noEmit",
-    "test": "node --test --import tsx tests/no-call/admin-audit-log-business-summary.test.ts tests/no-call/admin-dashboard-risk-overview.test.ts tests/no-call/admin-generation-refund-link.test.ts tests/no-call/admin-orders-readonly.test.ts tests/no-call/admin-point-adjustment-audit.test.ts tests/no-call/admin-provider-health-preflight.test.ts tests/no-call/admin-provider-storage-dangerous-actions-gate.test.ts tests/no-call/auth-session-touch.test.ts tests/no-call/commercial-payment-closure.test.ts tests/no-call/payment-provider-adapter.test.ts tests/no-call/payment-secret-injection-preflight.test.ts",
+    "test": "node --test --import tsx tests/no-call/admin-audit-log-business-summary.test.ts tests/no-call/admin-dashboard-risk-overview.test.ts tests/no-call/admin-generation-refund-link.test.ts tests/no-call/admin-orders-readonly.test.ts tests/no-call/admin-point-adjustment-audit.test.ts tests/no-call/admin-provider-health-preflight.test.ts tests/no-call/admin-provider-storage-dangerous-actions-gate.test.ts tests/no-call/auth-session-touch.test.ts tests/no-call/commercial-payment-closure.test.ts tests/no-call/generation-flow-no-call-e2e-preflight.test.ts tests/no-call/payment-provider-adapter.test.ts tests/no-call/payment-secret-injection-preflight.test.ts",
     "prisma:generate": "prisma generate",
     "prisma:format": "prisma format",
     "prisma:migrate:dev": "prisma migrate dev",

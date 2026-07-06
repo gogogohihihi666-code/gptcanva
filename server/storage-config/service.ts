@@ -467,6 +467,8 @@ export const uploadBufferToActiveObjectStorage = async (input: {
   buffer: Buffer
   mimeType?: string
 }) => {
+  assertDangerousAdminActionAllowed('generation-storage-upload')
+
   const activeConfig = await getActiveObjectStorageConfig()
 
   if (!activeConfig) {
