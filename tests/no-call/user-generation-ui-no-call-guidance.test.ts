@@ -36,6 +36,14 @@ describe('user generation no-call guidance', () => {
           defaultParamsJson: { billingRule: { power: 8 } },
         }],
       }],
+      storageConfigs: [{
+        id: 'storage-1',
+        endpoint: 'https://oss.example.invalid',
+        bucket: 'must-not-leak',
+        accessKeyEncrypted: 'must-not-leak',
+        secretKeyEncrypted: 'must-not-leak',
+        isEnabled: true,
+      }],
       env: {},
     })
     const text = JSON.stringify(overview)
@@ -67,16 +75,66 @@ describe('user generation no-call guidance', () => {
     const page = readText('src/views/generate/generate.vue')
     const generator = readText('src/components/generate/ContentGenerator.vue')
     const index = readText('server/index.ts')
+    const viteConfig = readText('vite.config.ts')
 
     assert.match(api, /\/api\/generation\/preflight-status/)
     assert.match(page, /getGenerationPreflightStatus/)
     assert.match(page, /generationPreflightStatus/)
     assert.match(page, /:generation-preflight-status=/)
+    assert.match(page, /main-content-G632JF\.new-conversation\.with-sidebar/)
     assert.match(generator, /generationPreflightStatus/)
     assert.match(generator, /generationAvailabilityMessage/)
     assert.match(generator, /generationSubmitBlocked/)
-    assert.match(generator, /默认 no-call|no-call/)
+    assert.match(generator, /no-call/)
+    assert.match(generator, /真实 AI Provider/)
+    assert.match(generator, /不会扣积分/)
+    assert.match(generator, /不会上传 OSS\/S3/)
+    assert.match(generator, /Provider/)
+    assert.match(generator, /模型/)
+    assert.match(generator, /存储/)
+    assert.match(generator, /generation-preflight-summary/)
+    assert.match(generator, /@media screen and \(max-width: 640px\)/)
+    assert.match(generator, /min-width:\s*0/)
     assert.match(generator, /ElMessage\.warning/)
     assert.match(index, /generation-preflight-status/)
+    assert.match(viteConfig, /['"]\/api['"]/)
+    assert.match(viteConfig, /localhost:5409/)
+    assert.ok(index.indexOf('generation-preflight-status') > -1)
+    assert.ok(index.indexOf('generation-preflight-status') < index.indexOf('frontend-static'))
+  })
+
+  it('returns user-safe readiness summaries for provider, model, storage, and no-call gates', () => {
+    const overview = __generationPreflightStatusTestHooks.buildGenerationPreflightStatusFromRecords({
+      providers: [{
+        id: 'provider-1',
+        isEnabled: false,
+        models: [],
+      }],
+      storageConfigs: [],
+      env: {},
+    })
+    const text = JSON.stringify(overview)
+
+    assert.equal(overview.generationAvailable, false)
+    assert.equal(overview.willCallProvider, false)
+    assert.equal(overview.willUploadStorage, false)
+    assert.equal(overview.willChargePoints, false)
+    assert.equal(overview.storageSummary.hasEnabledStorage, false)
+    assert.equal(overview.storageSummary.enabledStorageCount, 0)
+    assert.deepEqual(
+      overview.statusItems.map(item => item.key),
+      ['provider', 'model', 'storage', 'external-call', 'points']
+    )
+    assert.match(overview.userMessage, /真实 AI Provider/)
+    assert.match(overview.userMessage, /不会扣积分/)
+    assert.match(overview.userMessage, /不会上传 OSS\/S3/)
+    assert.match(overview.actionHint, /Provider/)
+    assert.match(overview.actionHint, /模型/)
+    assert.match(overview.actionHint, /存储/)
+    assert.doesNotMatch(text, /bucket/i)
+    assert.doesNotMatch(text, /endpoint/i)
+    assert.doesNotMatch(text, /apiKeyEncrypted/i)
+    assert.doesNotMatch(text, /secret/i)
+    assert.doesNotMatch(text, /token/i)
   })
 })

@@ -1008,7 +1008,7 @@ onMounted(() => {
   void loadGenerationPreflightStatus()
 })
 
-const buildUnavailableGenerationPreflightStatus = (message = '当前生成服务暂不可用。'): GenerationPreflightStatus => ({
+const buildUnavailableGenerationPreflightStatus = (message = '当前处于 no-call 预检阶段，暂不会调用真实 AI Provider，不会创建真实生成任务，不会扣积分，不会上传 OSS/S3。'): GenerationPreflightStatus => ({
   readonly: true,
   generatedAt: new Date().toISOString(),
   databaseConfigured: false,
@@ -1017,7 +1017,7 @@ const buildUnavailableGenerationPreflightStatus = (message = '当前生成服务
   status: 'NO_CALL_BLOCKED',
   userTitle: '生成暂不可用',
   userMessage: message,
-  actionHint: '请等待管理员完成 no-call 预检和真实生成授权后再使用。',
+  actionHint: '请等待管理员完成 Provider、模型和存储配置检查，并明确授权真实生成 gate 后再使用。',
   blockedReasons: ['PREFLIGHT_STATUS_UNAVAILABLE'],
   providerSummary: {
     hasEnabledProvider: false,
@@ -1030,6 +1030,42 @@ const buildUnavailableGenerationPreflightStatus = (message = '当前生成服务
     enabledChatModelCount: 0,
     pricedModelCount: 0,
   },
+  storageSummary: {
+    hasEnabledStorage: false,
+    enabledStorageCount: 0,
+  },
+  statusItems: [
+    {
+      key: 'provider',
+      label: 'Provider 状态',
+      status: 'BLOCKED',
+      text: 'Provider 未就绪或当前外呼关闭。',
+    },
+    {
+      key: 'model',
+      label: '模型状态',
+      status: 'BLOCKED',
+      text: '模型未就绪或当前不创建任务。',
+    },
+    {
+      key: 'storage',
+      label: '存储状态',
+      status: 'BLOCKED',
+      text: '存储未就绪，当前不会上传 OSS/S3。',
+    },
+    {
+      key: 'external-call',
+      label: '真实外呼',
+      status: 'BLOCKED',
+      text: 'no-call gate 已关闭真实 AI Provider 调用。',
+    },
+    {
+      key: 'points',
+      label: '积分扣除',
+      status: 'BLOCKED',
+      text: '提交已在任务创建前阻断，不会扣积分。',
+    },
+  ],
   gateSummary: {
     providerGateName: 'generation-provider-execution',
     storageGateName: 'generation-storage-upload',
@@ -1051,7 +1087,7 @@ const loadGenerationPreflightStatus = async () => {
     generationPreflightStatus.value = await getGenerationPreflightStatus()
   } catch {
     generationPreflightStatus.value = buildUnavailableGenerationPreflightStatus(
-        '生成状态预检暂时不可用，页面已按 no-call 保护阻止提交。'
+        '生成状态预检暂时不可用，页面已按 no-call 保护阻止提交；暂不会调用真实 AI Provider，不会扣积分，不会上传 OSS/S3。'
     )
   } finally {
     generationPreflightLoading.value = false
@@ -3347,6 +3383,24 @@ onUnmounted(() => {
   min-height: 0;
   overflow: hidden;
   padding: 32px 24px 96px;
+}
+
+@media screen and (max-width: 640px) {
+  .main-content-G632JF.new-conversation.with-sidebar {
+    align-items: stretch;
+    justify-content: center;
+    padding: 24px 12px 88px;
+  }
+
+  .main-content-G632JF.new-conversation.with-sidebar .new-conversation-hero-canana {
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .main-content-G632JF.new-conversation.with-sidebar .new-conversation-title,
+  .main-content-G632JF.new-conversation.with-sidebar .new-conversation-subtitle-canana {
+    text-align: left;
+  }
 }
 
 .new-conversation-hero-canana {

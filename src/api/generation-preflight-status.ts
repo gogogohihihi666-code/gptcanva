@@ -23,6 +23,16 @@ export interface GenerationPreflightStatus {
     enabledChatModelCount: number
     pricedModelCount: number
   }
+  storageSummary: {
+    hasEnabledStorage: boolean
+    enabledStorageCount: number
+  }
+  statusItems: Array<{
+    key: string
+    label: string
+    status: 'PASS' | 'WARN' | 'BLOCKED' | 'UNKNOWN'
+    text: string
+  }>
   gateSummary: {
     providerGateName: string
     storageGateName: string

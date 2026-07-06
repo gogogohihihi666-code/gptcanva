@@ -296,13 +296,46 @@ const generationSubmitBlocked = computed(() => {
   return props.generationPreflightStatus?.generationAvailable === false
 })
 
+const fallbackGenerationPreflightStatusItems = [
+  {
+    key: 'provider',
+    label: 'Provider 状态',
+    status: 'BLOCKED',
+    text: 'Provider 未就绪或当前外呼关闭。',
+  },
+  {
+    key: 'model',
+    label: '模型状态',
+    status: 'BLOCKED',
+    text: '模型未就绪或当前不创建任务。',
+  },
+  {
+    key: 'storage',
+    label: '存储状态',
+    status: 'BLOCKED',
+    text: '存储未就绪，当前不会上传 OSS/S3。',
+  },
+  {
+    key: 'external-call',
+    label: '真实外呼',
+    status: 'BLOCKED',
+    text: 'no-call gate 已关闭真实 AI Provider 调用。',
+  },
+  {
+    key: 'points',
+    label: '积分扣除',
+    status: 'BLOCKED',
+    text: '提交已在任务创建前阻断，不会扣积分。',
+  },
+]
+
 const generationAvailabilityMessage = computed(() => {
   if (props.generationPreflightLoading) {
     return '正在检查生成服务状态。'
   }
   if (props.generationPreflightStatus?.generationAvailable === false) {
     return props.generationPreflightStatus.userMessage
-      || '当前处于默认 no-call 预检阶段，真实生成暂不可用；页面不会创建任务、扣积分或上传存储。'
+      || '当前处于默认 no-call 预检阶段，真实生成暂不可用；页面不会调用真实 AI Provider，不会创建任务，不会扣积分，不会上传 OSS/S3。'
   }
   return ''
 })
@@ -313,6 +346,15 @@ const generationAvailabilityHint = computed(() => {
       || '请等待管理员完成 Provider 健康检查并明确授权真实生成 gate。'
   }
   return ''
+})
+
+const generationPreflightStatusItems = computed(() => {
+  if (!props.generationPreflightStatus || props.generationPreflightStatus.generationAvailable !== false) {
+    return []
+  }
+  return props.generationPreflightStatus.statusItems?.length
+    ? props.generationPreflightStatus.statusItems
+    : fallbackGenerationPreflightStatusItems
 })
 
 const handleKeydown = (e: KeyboardEvent) => {
@@ -1118,6 +1160,20 @@ onUnmounted(() => {
           <strong>{{ props.generationPreflightStatus?.userTitle || '生成状态' }}</strong>
           <span>{{ generationAvailabilityMessage }}</span>
           <em v-if="generationAvailabilityHint">{{ generationAvailabilityHint }}</em>
+          <ul
+            v-if="generationPreflightStatusItems.length"
+            class="generation-preflight-summary"
+            aria-label="生成链路只读状态"
+          >
+            <li
+              v-for="item in generationPreflightStatusItems"
+              :key="item.key"
+              :class="['generation-preflight-summary__item', `generation-preflight-summary__item--${String(item.status || 'UNKNOWN').toLowerCase()}`]"
+            >
+              <span class="generation-preflight-summary__label">{{ item.label }}</span>
+              <span class="generation-preflight-summary__text">{{ item.text }}</span>
+            </li>
+          </ul>
         </div>
 
         <div
@@ -1339,8 +1395,8 @@ onUnmounted(() => {
 
 .generation-preflight-notice {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 6px 10px;
   margin: 8px 12px 0;
   padding: 8px 10px;
@@ -1360,6 +1416,38 @@ onUnmounted(() => {
 .generation-preflight-notice em {
   color: #991b1b;
   font-style: normal;
+}
+
+.generation-preflight-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  width: 100%;
+}
+
+.generation-preflight-summary__item {
+  align-items: center;
+  background: rgba(255, 255, 255, .58);
+  border: 1px solid rgba(239, 68, 68, .14);
+  border-radius: 6px;
+  display: inline-flex;
+  flex: 1 1 180px;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 6px;
+}
+
+.generation-preflight-summary__label {
+  flex: 0 0 auto;
+  font-weight: 700;
+}
+
+.generation-preflight-summary__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* 统一新版发送按钮样式：普通布局走反转圆钮，侧边栏保持原样 */
@@ -1398,6 +1486,34 @@ onUnmounted(() => {
   min-width: 622px;
   /*position: sticky;*/
   width: 100%;
+}
+
+@media screen and (max-width: 640px) {
+  .dimension-layout-FUl4Nj.default-layout-eH8Zi1,
+  .dimension-layout-FUl4Nj .default-layout-eH8Zi1 {
+    max-width: min(100%, calc(100vw - 24px));
+    min-width: 0;
+    width: min(100%, calc(100vw - 24px));
+  }
+
+  .dimension-layout-FUl4Nj .main-content-eTfdBT {
+    margin-right: 0;
+    min-width: 0;
+  }
+
+  .generation-preflight-notice {
+    margin: 8px 8px 0;
+    max-width: calc(100vw - 40px);
+  }
+
+  .generation-preflight-summary {
+    flex-direction: column;
+  }
+
+  .generation-preflight-summary__item {
+    flex-basis: auto;
+    width: 100%;
+  }
 }
 
 @media screen and (max-width: 1920px) {

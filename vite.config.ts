@@ -94,6 +94,11 @@ export default defineConfig({
 
     // 保留示例代理，便于接第三方接口调试。
     proxy: {
+      '/api': {
+        target: 'http://localhost:5409',
+        changeOrigin: true,
+        secure: false,
+      },
       '/jimeng-api': {
         target: 'https://api.jimeng.jianying.com',
         changeOrigin: true,
