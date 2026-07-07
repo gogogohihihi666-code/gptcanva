@@ -55,7 +55,16 @@ const addDays = (now: Date, days: number) => {
   return date
 }
 
-const buildFixtureId = (suffix: string) => `demo-${suffix}`
+const buildFixtureId = (suffix: string) => {
+  let hash = 2166136261
+  for (const char of suffix) {
+    hash ^= char.charCodeAt(0)
+    hash = Math.imul(hash, 16777619)
+  }
+  const digest = (hash >>> 0).toString(36).padStart(7, '0')
+  const label = suffix.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 20)
+  return `dm-${digest}-${label}`.slice(0, 36)
+}
 const buildDemoOrderNo = (suffix: string) => `DEMO-NOCALL-${suffix}`
 const buildDemoAccountNo = (suffix: string) => `DEMO-PTS-${suffix}`
 
@@ -576,10 +585,12 @@ const createInMemoryStore = () => {
     'generationSessions',
   ]
   for (const kind of kinds) tables.set(kind, new Map())
+  const operationKinds: string[] = []
 
   const upsert = (kind: string, id: string, value: Record<string, unknown>) => {
     const table = tables.get(kind)
     if (!table) throw new Error(`Unknown table ${kind}`)
+    operationKinds.push(kind)
     const existed = table.has(id)
     table.set(id, { ...value, id, marker: DEMO_FIXTURE_MARKER })
     return existed ? 'updated' : 'created'
@@ -625,6 +636,9 @@ const createInMemoryStore = () => {
       }
       return count
     },
+    getOperationKinds() {
+      return operationKinds.slice()
+    },
     async seedDataset(dataset: NoCallDemoFixtureDataset) {
       let createdTotal = 0
       let updatedTotal = 0
@@ -636,11 +650,11 @@ const createInMemoryStore = () => {
       track(upsert('users', dataset.user.id, dataset.user))
       track(upsert('membershipLevels', dataset.membershipLevel.id, dataset.membershipLevel as unknown as Record<string, unknown>))
       track(upsert('membershipPlans', dataset.membershipPlan.id, dataset.membershipPlan as unknown as Record<string, unknown>))
-      track(upsert('userSubscriptions', dataset.userSubscription.id, dataset.userSubscription as unknown as Record<string, unknown>))
       track(upsert('rechargePackages', dataset.rechargePackage.id, dataset.rechargePackage as unknown as Record<string, unknown>))
       track(upsert('generationSessions', dataset.generationSession.id, dataset.generationSession as unknown as Record<string, unknown>))
       for (const item of dataset.membershipOrders) track(upsert('membershipOrders', item.id, item as unknown as Record<string, unknown>))
       for (const item of dataset.rechargeOrders) track(upsert('rechargeOrders', item.id, item as unknown as Record<string, unknown>))
+      track(upsert('userSubscriptions', dataset.userSubscription.id, dataset.userSubscription as unknown as Record<string, unknown>))
       for (const item of dataset.paymentTransactions) track(upsert('paymentTransactions', item.id, item as unknown as Record<string, unknown>))
       for (const item of dataset.benefitGrants) track(upsert('benefitGrants', item.id, item as unknown as Record<string, unknown>))
       for (const item of dataset.generationRecords) track(upsert('generationRecords', item.id, item as unknown as Record<string, unknown>))
@@ -724,12 +738,6 @@ const createPrismaDemoFixtureStore = async (): Promise<DemoFixtureStore & { disc
           isEnabled: true,
           sortOrder: 99001,
         }))
-        track(counts, await upsertWithId(tx.userSubscription, dataset.userSubscription.id, {
-          ...dataset.userSubscription,
-          userId: dataset.user.id,
-          levelId: dataset.membershipLevel.id,
-          orderId: dataset.membershipOrders[1].id,
-        }))
         track(counts, await upsertWithId(tx.generationSession, dataset.generationSession.id, {
           ...dataset.generationSession,
           userId: dataset.user.id,
@@ -764,6 +772,13 @@ const createPrismaDemoFixtureStore = async (): Promise<DemoFixtureStore & { disc
             refundedAt: null,
           }))
         }
+
+        track(counts, await upsertWithId(tx.userSubscription, dataset.userSubscription.id, {
+          ...dataset.userSubscription,
+          userId: dataset.user.id,
+          levelId: dataset.membershipLevel.id,
+          orderId: dataset.membershipOrders[1].id,
+        }))
 
         for (const item of dataset.paymentTransactions) {
           track(counts, await upsertWithId(tx.paymentTransaction, item.id, {

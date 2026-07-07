@@ -61,6 +61,30 @@ describe('local no-call demo fixtures', () => {
     assert.doesNotMatch(text, /demo-admin@example.local/i)
   })
 
+  it('keeps fixed fixture ids within Prisma varchar limits', () => {
+    const dataset = buildNoCallDemoFixtureDataset(new Date('2026-07-07T08:00:00.000Z'))
+    const ids: string[] = []
+    const collectIds = (value: unknown) => {
+      if (!value || typeof value !== 'object') return
+      if (Array.isArray(value)) {
+        value.forEach(collectIds)
+        return
+      }
+      const record = value as Record<string, unknown>
+      if (typeof record.id === 'string') {
+        ids.push(record.id)
+      }
+      Object.values(record).forEach(collectIds)
+    }
+
+    collectIds(dataset)
+
+    assert.equal(ids.length > 0, true)
+    for (const id of ids) {
+      assert.equal(id.length <= 36, true, `${id} exceeds 36 chars`)
+    }
+  })
+
   it('seeds idempotently without Provider, payment, storage, or production-user side effects', async () => {
     const store = __noCallDemoFixtureTestHooks.createInMemoryStore()
     const externalCalls: string[] = []
@@ -96,6 +120,24 @@ describe('local no-call demo fixtures', () => {
     assert.equal(counts.generationRecords >= 4, true)
     assert.equal(counts.pointLogs >= 5, true)
     assert.equal(counts.auditLogs >= 4, true)
+  })
+
+  it('creates membership orders before subscriptions that reference them', async () => {
+    const store = __noCallDemoFixtureTestHooks.createInMemoryStore()
+
+    await seedNoCallDemoFixtures({
+      env: allowedEnv,
+      store,
+      now: new Date('2026-07-07T08:00:00.000Z'),
+    })
+
+    const operationKinds = store.getOperationKinds()
+    assert.ok(operationKinds.indexOf('membershipOrders') > -1)
+    assert.ok(operationKinds.indexOf('userSubscriptions') > -1)
+    assert.equal(
+      operationKinds.indexOf('membershipOrders') < operationKinds.indexOf('userSubscriptions'),
+      true,
+    )
   })
 
   it('clean removes only marked demo data and preserves non-demo records', async () => {
