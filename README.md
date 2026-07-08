@@ -9,6 +9,14 @@
 
 # CanvasMind
 
+## Brand And Domain
+
+- Primary domain: `www.okwook.com`
+- DNS nameservers: `a.share-dns.com`, `b.share-dns.net`
+- English slogan: "Confront It OK. Astonish It Wo. Command It OK."
+- Chinese slogan: "直面挑战，震撼全场，掌控一切。"
+- Release note: these values are documentation records only. DNS, HTTPS, reverse proxy, production environment variables, payment webhooks, email domain, and CORS must still be verified in a separately authorized release task.
+
 > 一站式 AI 创作与后台运营平台
 
 `CanvasMind` 一个包含 **Vue 3 前台创作端 + Node/Prisma 后台服务 + 管理后台** 的完整项目骨架。

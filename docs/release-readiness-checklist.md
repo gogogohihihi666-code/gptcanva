@@ -4,6 +4,8 @@ Date: 2026-07-08
 
 This checklist defines the work that must be completed before moving the current local no-call MVP toward any remote push, real provider smoke, real payment validation, storage smoke, or production deployment.
 
+Last domain and brand update: 2026-07-09.
+
 ## Current Frozen Version
 
 - Current HEAD: `5dc92b0`.
@@ -16,6 +18,17 @@ This checklist defines the work that must be completed before moving the current
 - Real OSS / S3 upload, read, delete, and signed URL tests: forbidden.
 
 The frozen local state has passed the authorized no-call checks, including backend/admin no-call flows, `/generate` no-call guidance, `/account` demo user acceptance, and local demo fixture seed / clean.
+
+## Brand And Domain Record
+
+Current approved brand and domain notes:
+
+- Primary domain: `www.okwook.com`.
+- DNS nameservers: `a.share-dns.com`, `b.share-dns.net`.
+- English slogan: "Confront It OK. Astonish It Wo. Command It OK."
+- Chinese slogan: "直面挑战，震撼全场，掌控一切。"
+
+These values are recorded for release planning only. This document update does not configure DNS, request certificates, change production environment variables, deploy the application, or open any real payment, AI Provider, storage, or generation gate.
 
 ## Release Entry Requirements
 
@@ -31,6 +44,23 @@ Before release work can begin, complete and record the following:
 - Configure domain, HTTPS, and reverse proxy routing.
 - Configure logs, retention, and alerting.
 - Check administrator account security, including password policy and access scope.
+
+## Domain Go-Live Checklist
+
+Domain setup is not performed in this no-deploy documentation task. Before go-live, complete and record each item:
+
+- Confirm DNS resolution for `www.okwook.com`.
+- Decide and document the root-domain strategy for `okwook.com`, including whether it redirects to `www.okwook.com`.
+- Confirm `www` and root-domain redirect behavior in both HTTP and HTTPS.
+- Request and install the HTTPS certificate only in an authorized deployment task.
+- Configure reverse proxy routing for frontend traffic and API traffic.
+- Decide whether HSTS is enabled at launch, including preload posture and rollback implications.
+- Set production `FRONTEND_URL` in the approved secret or environment system.
+- Set production `API_BASE_URL` in the approved secret or environment system.
+- Confirm payment webhook callback domain and path before any payment sandbox or production payment work.
+- Confirm email sending domain, SPF, DKIM, and DMARC before production email sending.
+- Confirm CORS allowlist includes only the intended production origins.
+- Confirm logs do not print tokens, cookies, authorization headers, API keys, certificates, webhook secrets, signed URLs, base64 payloads, bucket-sensitive values, endpoint-sensitive values, or raw provider responses.
 
 ## GitHub Push Checklist
 
@@ -178,6 +208,9 @@ Before deployment:
 - Complete the GitHub push checklist.
 - Confirm the intended branch and commit are pushed.
 - Confirm production environment variables are complete.
+- Confirm DNS resolution and root-domain redirect strategy are complete.
+- Confirm HTTPS certificate and reverse proxy routing are complete.
+- Confirm production `FRONTEND_URL`, production `API_BASE_URL`, payment webhook domain, email sending domain, and CORS allowlist are complete.
 - Confirm local demo fixture gate is disabled.
 - Confirm no no-call demo seed runs in production.
 - Confirm `.env.production` is not committed.
