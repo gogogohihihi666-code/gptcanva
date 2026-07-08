@@ -54,7 +54,15 @@ Latest automated and manual acceptance evidence:
 - `/admin/audit-logs` populated demo scenario: PASS, including readonly detail and redacted before / after display.
 - `/admin/dashboard` populated demo scenario: PASS.
 - `/generate` no-call guidance: PASS.
-- `/account` demo user scenario: not verified because the browser session stayed in the administrator account. This is a follow-up verification item and did not block backend demo fixture acceptance.
+- `/account` demo user scenario: PASS in a demo user login session.
+  - Demo user login state: PASS through the existing `EMAIL_CODE` debug autofill flow.
+  - Points balance: displayed `1255`.
+  - Recent point logs: displayed 5 demo entries.
+  - Membership state: displayed `Demo Local Member`.
+  - Generation tasks: displayed 5 demo tasks, including `COMPLETED`, `FAILED`, `STOPPED`, and `RUNNING`.
+  - Works / result entry: visible, with the works area showing a reasonable empty placeholder.
+  - Readonly page behavior: PASS.
+  - Mobile layout: PASS at 390px, with `scrollWidth/clientWidth = 390/390`.
 
 The demo fixture output confirmed:
 
@@ -101,7 +109,7 @@ Any authorization must name the provider, model, payment provider, storage targe
 - Real payment Provider remains parked.
 - Real AI Provider has not been smoke tested.
 - OSS / S3 has not been tested with a real upload path.
-- `/account` demo user scenario has not been verified in a demo user login session.
+- `/account` demo user scenario is verified locally, but production user-account smoke remains pending.
 - Production environment variables have not been injected.
 - Production deployment has not been rehearsed.
 - Rollback and backup procedures have not been rehearsed.
