@@ -52,6 +52,16 @@
                   </button>
                 </div>
 
+                <div class="paymentParkedNotice" role="status" aria-live="polite">
+                  <div class="paymentParkedNotice__header">
+                    <span class="paymentParkedNotice__badge">no-call</span>
+                    <strong>支付暂未开启</strong>
+                  </div>
+                  <div class="paymentParkedNotice__body">
+                    <span v-for="item in paymentParkedNoticeItems" :key="item">{{ item }}</span>
+                  </div>
+                </div>
+
                 <div v-if="isLoadingPanel" class="creditsDesc">正在加载营销权益...</div>
 
                 <template v-else>
@@ -93,8 +103,8 @@
                                 class="priceButton priceButtonWithResourcePositionMaterial mweb-button-default"
                                 :class="getPlanButtonClass(plan, planIndex)"
                                 type="button"
-                                :disabled="submitting || isZeroPricePlan(plan)"
-                                @click="handlePurchaseMembership(plan)"
+                                :disabled="isMembershipPurchaseBlocked(plan)"
+                                @click="handlePaymentParkedAction"
                               >
                                 {{ getPlanButtonText(plan, planIndex) }}
                               </button>
@@ -153,10 +163,10 @@
                                 class="priceButton priceButtonWithResourcePositionMaterial mweb-button-default"
                                 :class="getRechargeButtonClass(item, itemIndex)"
                                 type="button"
-                                :disabled="submitting"
-                                @click="handlePurchaseRecharge(item)"
+                                :disabled="isRechargePurchaseBlocked"
+                                @click="handlePaymentParkedAction"
                               >
-                                立即充值
+                                支付未开启
                               </button>
                             </div>
                           </div>
@@ -363,26 +373,16 @@
     :available="Number(pointsBalance || 0)"
     :logs="pointLogs"
   />
-  <ScanPayModal
-    v-model:visible="scanPayVisible"
-    :amount="scanPayAmount"
-    :agreement-href="paymentAgreementHref"
-    :agreement-label="paymentAgreementLabel"
-    :submitting="submitting"
-    @confirm="handleConfirmScanPay"
-  />
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import PointsDetailModal from './PointsDetailModal.vue'
-import ScanPayModal from './ScanPayModal.vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { useLoginModalStore } from '@/stores/login-modal'
 import { useMarketingCenterStore } from '@/stores/marketing-center'
 import { useMarketingModalStore, type MarketingModalTab } from '@/stores/marketing-modal'
-import { useSystemSettingsStore } from '@/stores/system-settings'
 import { formatMoney, formatMoneyDisplay, isHigherOriginalPrice, toMoneyNumber } from '@/utils/money'
 import './MarketingModal.css'
 
@@ -398,7 +398,6 @@ const authStore = useAuthStore()
 const { openLoginModal } = useLoginModalStore()
 const { marketingModalTab, setMarketingModalTab } = useMarketingModalStore()
 const marketingCenterStore = useMarketingCenterStore()
-const systemSettingsStore = useSystemSettingsStore()
 
 const redeemCodeValue = ref('')
 const activeTab = computed<MarketingModalTab>(() => marketingModalTab.value)
@@ -411,6 +410,18 @@ const activeSubscription = computed(() => marketingCenterStore.activeSubscriptio
 const hasCheckedInToday = computed(() => marketingCenterStore.hasCheckedInToday.value)
 const isLoadingPanel = computed(() => marketingCenterStore.loading.value && !marketingCenterStore.overview.value)
 const submitting = computed(() => marketingCenterStore.submitting.value)
+const isBillingPaymentParked = computed(() => true)
+const isRechargePurchaseBlocked = computed(() => isBillingPaymentParked.value || submitting.value)
+const paymentParkedToast = '支付暂未开启：当前不会创建真实支付单、不会创建订单、不会跳转真实支付渠道、不会扣款，也不会自动发会员或增加积分。'
+const paymentParkedNoticeItems = [
+  '当前不会创建真实支付单',
+  '当前不会创建订单',
+  '当前不会跳转真实支付渠道',
+  '当前不会扣款',
+  '当前不会自动发会员',
+  '当前不会自动增加积分',
+  '如需验证，只能走本地 demo fixture 或后续授权 sandbox',
+]
 
 const tabs = computed(() => [
   { key: 'membership' as MarketingModalTab, label: '会员套餐', badge: membershipPlans.value.length ? `${membershipPlans.value.length}档` : '' },
@@ -466,16 +477,8 @@ const secondaryRewardRules = computed(() => rewardDisplayRules.value.slice(1))
 const currentCheckinRecord = computed(() => marketingCenterStore.overview.value?.checkin.currentRecord as Record<string, any> | null)
 const pointLogs = computed(() => (marketingCenterStore.overview.value?.points.logs || []) as Array<Record<string, any>>)
 const pointsDetailVisible = ref(false)
-const scanPayVisible = ref(false)
-const scanPayAmount = ref(0)
-const scanPayPayload = ref<{ type: 'membership' | 'recharge'; id: string } | null>(null)
 
 const redeemDisplayRecords = computed(() => cardRedeemRecords.value.slice(0, 3))
-const paymentAgreementHref = computed(() => systemSettingsStore.publicSystemSettings.value.policySettings.userAgreementUrl || '/policies/user-agreement')
-const paymentAgreementLabel = computed(() => {
-  const policyTitle = String(systemSettingsStore.publicSystemSettings.value.policySettings.userAgreementTitle || '').trim()
-  return policyTitle ? `《${policyTitle}》` : '《付费服务协议（含自动续费条款）》'
-})
 
 const redeemBenefits = [
   '支持兑换会员时长',
@@ -508,8 +511,6 @@ const heroDescription = computed(() => {
 
 const closeModal = () => {
   pointsDetailVisible.value = false
-  scanPayVisible.value = false
-  scanPayPayload.value = null
   emit('update:visible', false)
 }
 
@@ -585,6 +586,7 @@ const getPlanPriceUnitText = (plan: Record<string, any>) => {
 }
 const isActiveMembershipPlan = (plan: Record<string, any>) => Boolean(activeSubscription.value?.levelId) && String(activeSubscription.value?.levelId) === String(plan.levelId)
 const isZeroPricePlan = (plan: Record<string, any>) => toMoneyNumber(plan.salesPrice, 0) <= 0
+const isMembershipPurchaseBlocked = (plan: Record<string, any>) => isBillingPaymentParked.value || submitting.value || isZeroPricePlan(plan)
 
 // 参考稿右侧高亮卡为主推位，这里使用价格最高的有效套餐对齐展示。
 const isFeaturedPlan = (plan: Record<string, any>, planIndex: number) => {
@@ -604,6 +606,9 @@ const isFeaturedRecharge = (item: Record<string, any>, itemIndex: number) => {
 }
 
 const getPlanButtonText = (plan: Record<string, any>, planIndex: number) => {
+  if (isBillingPaymentParked.value && !isZeroPricePlan(plan)) {
+    return '支付未开启'
+  }
   if (isZeroPricePlan(plan)) {
     return '当前计划'
   }
@@ -619,7 +624,7 @@ const getPlanButtonText = (plan: Record<string, any>, planIndex: number) => {
 
 // 按参考稿的主按钮、普通按钮、禁用按钮三种状态映射。
 const getPlanButtonClass = (plan: Record<string, any>, planIndex: number) => {
-  if (isZeroPricePlan(plan)) {
+  if (isMembershipPurchaseBlocked(plan)) {
     return 'freeButton disabled'
   }
   if (isFeaturedPlan(plan, planIndex)) {
@@ -629,6 +634,9 @@ const getPlanButtonClass = (plan: Record<string, any>, planIndex: number) => {
 }
 
 const getRechargeButtonClass = (item: Record<string, any>, itemIndex: number) => {
+  if (isRechargePurchaseBlocked.value) {
+    return 'freeButton disabled'
+  }
   if (isFeaturedRecharge(item, itemIndex)) {
     return 'recommendButton'
   }
@@ -662,6 +670,9 @@ const getMembershipDesc = (plan: Record<string, any>) => {
   return String(plan.description || plan.name || '解锁更多会员权益')
 }
 const getMembershipCreditDesc = (plan: Record<string, any>) => {
+  if (isBillingPaymentParked.value && !isZeroPricePlan(plan)) {
+    return '支付 parked / no-call：展示套餐，不会自动发放会员或积分'
+  }
   if (isZeroPricePlan(plan)) {
     return '当前默认权益立即生效'
   }
@@ -673,6 +684,9 @@ const getMembershipCreditDesc = (plan: Record<string, any>) => {
 
 const getRechargeDesc = (item: Record<string, any>) => String(item.label || item.description || '多充多送，立即到账')
 const getRechargeCreditDesc = (item: Record<string, any>) => {
+  if (isBillingPaymentParked.value) {
+    return '支付 parked / no-call：展示积分套餐，不会自动增加积分'
+  }
   if (isHigherOriginalPrice(item.originalPrice, item.price)) {
     return `原价 ${formatMoney(item.originalPrice)}`
   }
@@ -711,42 +725,8 @@ const getGridStyle = (count: number) => {
   }
 }
 
-// 当前营销下单仍是后端直充直开，这里先复用扫码支付弹窗承接前台支付确认交互。
-const openMembershipScanPay = (plan: Record<string, any>) => {
-  // 直接复用当前点击卡片的数据，避免再次按 id 回查时因数据映射差异导致金额丢失。
-  scanPayAmount.value = toMoneyNumber(plan?.salesPrice, 0)
-  scanPayPayload.value = { type: 'membership', id: String(plan?.id || '') }
-  scanPayVisible.value = true
-}
-
-const openRechargeScanPay = (rechargePackage: Record<string, any>) => {
-  // 充值金额也直接取当前卡片，保证弹窗标题和实际购买项完全一致。
-  scanPayAmount.value = toMoneyNumber(rechargePackage?.price, 0)
-  scanPayPayload.value = { type: 'recharge', id: String(rechargePackage?.id || '') }
-  scanPayVisible.value = true
-}
-
-const handlePurchaseMembership = async (plan: Record<string, any>) => {
-  if (!ensureLoggedInForAction()) return
-  openMembershipScanPay(plan)
-}
-
-const handlePurchaseRecharge = async (rechargePackage: Record<string, any>) => {
-  if (!ensureLoggedInForAction()) return
-  openRechargeScanPay(rechargePackage)
-}
-
-const handleConfirmScanPay = async () => {
-  if (!scanPayPayload.value) {
-    return
-  }
-  if (scanPayPayload.value.type === 'membership') {
-    await marketingCenterStore.purchaseMembership(scanPayPayload.value.id)
-  } else {
-    await marketingCenterStore.purchaseRecharge(scanPayPayload.value.id)
-  }
-  scanPayVisible.value = false
-  scanPayPayload.value = null
+const handlePaymentParkedAction = () => {
+  ElMessage.info(paymentParkedToast)
 }
 
 const handleCheckin = async () => {
@@ -788,8 +768,6 @@ watch(() => props.visible, (visible) => {
   setScrollLock(visible)
   if (!visible) {
     pointsDetailVisible.value = false
-    scanPayVisible.value = false
-    scanPayPayload.value = null
   }
   // 营销总览接口支持未登录访问，弹窗打开时始终拉一次，确保前台套餐和活动文案能正常展示。
   if (visible) {
