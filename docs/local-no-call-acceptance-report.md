@@ -2,11 +2,15 @@
 
 Date: 2026-07-08
 
+Latest frozen baseline update: 2026-07-10.
+
 This report summarizes the current local no-call acceptance status and the release backlog that must be resolved before any real provider, payment, storage, push, or deployment work.
 
 ## Current Conclusion
 
 The local no-call MVP has passed acceptance for the currently authorized scope.
+
+Frozen no-call MVP baseline: `e93638a`.
 
 This does not mean that real AI Provider integration, real payment integration, real OSS / S3 upload, or production deployment is complete. All real external calls remain forbidden by default, and GitHub push remains parked until separately authorized.
 
@@ -39,21 +43,43 @@ Current operating posture:
 - Generation flow no-call e2e preflight.
 - Local demo fixture seed / clean flow.
 - Local startup chain hardening through `scripts/dev/start-local-dev.ps1`.
+- User-facing plan, membership, and point recharge payment parked UI.
+- Payment parked UI blocks order creation and does not open `ScanPayModal`.
+- Payment parked UI does not call `purchaseMembership` or `purchaseRecharge`.
+- `dev:server` local env bootstrap loads `.env.development`.
+- `dev:server` loads `DATABASE_URL` before the Prisma phase without printing the value.
+- Production mode refuses the dev env bootstrap path.
 
 ## Acceptance Summary
 
 Latest automated and manual acceptance evidence:
 
-- `npm.cmd run test`: PASS, 64 tests passed.
+- Latest frozen-baseline regression: PASS at `e93638a`.
+- `npm.cmd run test`: PASS, 66 tests passed.
+- `npm.cmd run build:service`: PASS.
+- `npm.cmd run build`: PASS.
 - `npm.cmd run seed:no-call-demo`: PASS.
 - Demo seed output: `createdTotal=37`, `updatedTotal=0`, `removedTotal=0`.
 - `npm.cmd run seed:no-call-demo:clean`: PASS.
 - Demo clean output: `removedTotal=37`.
+- `5409 /api/system-init/status`: PASS, returned 200 JSON.
+- `5010 /api/system-init/status`: PASS, returned 200 JSON.
+- `5010 /`: PASS, did not redirect to `/install`.
 - `/admin/orders` populated demo scenario: PASS.
 - `/admin/generations` populated demo scenario: PASS.
 - `/admin/audit-logs` populated demo scenario: PASS, including readonly detail and redacted before / after display.
 - `/admin/dashboard` populated demo scenario: PASS.
 - `/generate` no-call guidance: PASS.
+- User-facing plan / membership / point recharge parked UI: PASS.
+  - Membership and point packages remain visible.
+  - Parked state states that no real payment order or local order is created.
+  - Parked state does not open `ScanPayModal`.
+  - Parked state does not call `purchaseMembership` or `purchaseRecharge`.
+  - Parked state does not grant membership or add points.
+- `dev:server` env bootstrap: PASS.
+  - Local startup loads `.env.development`.
+  - `DATABASE_URL` is available before Prisma generation.
+  - Production rejects the dev bootstrap path.
 - `/account` demo user scenario: PASS in a demo user login session.
   - Demo user login state: PASS through the existing `EMAIL_CODE` debug autofill flow.
   - Points balance: displayed `1255`.

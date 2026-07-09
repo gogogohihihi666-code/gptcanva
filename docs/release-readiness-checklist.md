@@ -6,9 +6,11 @@ This checklist defines the work that must be completed before moving the current
 
 Last domain and brand update: 2026-07-09.
 
+Last frozen baseline update: 2026-07-10.
+
 ## Current Frozen Version
 
-- Current HEAD: `5dc92b0`.
+- Current HEAD: `e93638a`.
 - Current status: local no-call MVP frozen.
 - GitHub push status: not pushed.
 - Deployment status: not deployed.
@@ -17,7 +19,29 @@ Last domain and brand update: 2026-07-09.
 - Real AI Provider calls: forbidden.
 - Real OSS / S3 upload, read, delete, and signed URL tests: forbidden.
 
-The frozen local state has passed the authorized no-call checks, including backend/admin no-call flows, `/generate` no-call guidance, `/account` demo user acceptance, and local demo fixture seed / clean.
+The frozen local state has passed the authorized no-call checks, including backend/admin no-call flows, `/generate` no-call guidance, `/account` demo user acceptance, local demo fixture seed / clean, user-facing payment parked UI, and dev server env bootstrap.
+
+Latest frozen-baseline regression evidence at `e93638a`:
+
+- `npm.cmd run test`: PASS, 66 tests passed.
+- `npm.cmd run build:service`: PASS.
+- `npm.cmd run build`: PASS.
+- `npm.cmd run seed:no-call-demo`: PASS, `createdTotal=37`.
+- `npm.cmd run seed:no-call-demo:clean`: PASS, `removedTotal=37`.
+- `5409 /api/system-init/status`: PASS, returned 200 JSON.
+- `5010 /api/system-init/status`: PASS, returned 200 JSON.
+- `5010 /`: PASS, did not redirect to `/install`.
+
+Additional modules included in the frozen baseline:
+
+- User-facing plan, membership, and point recharge payment parked UI.
+- Parked state does not create a real payment order or local order.
+- Parked state does not open `ScanPayModal`.
+- Parked state does not call `purchaseMembership` or `purchaseRecharge`.
+- Parked state does not grant membership or add points.
+- `dev:server` loads `.env.development` for local development.
+- `DATABASE_URL` is loaded before the Prisma phase without printing the value.
+- Production mode refuses the dev env bootstrap path.
 
 ## Brand And Domain Record
 
