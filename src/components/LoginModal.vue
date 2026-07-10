@@ -126,34 +126,31 @@
                     </div>
                   </div>
 
-                  <label class="lv-checkbox">
-                    <input v-model="agreementChecked" type="checkbox" value="" class="sf-hidden">
-                    <span class="lv-icon-hover lv-checkbox-icon-hover lv-checkbox-mask-wrapper">
-                      <div class="lv-checkbox-mask" :class="{ 'is-checked-canana': agreementChecked }">
-                        <svg
-                          class="lv-checkbox-mask-icon"
-                          aria-hidden="true"
-                          focusable="false"
-                          viewBox="0 0 24 24"
-                          width="24"
-                          height="24"
-                          fill="currentColor"
-                        >
-                          <path d="M18.8536 8.35355C19.0489 8.54882 19.0489 8.8654 18.8536 9.06066L10.8536 17.0607C10.6584 17.2559 10.3418 17.2559 10.1465 17.0607L5.14651 12.0607C4.95125 11.8654 4.95125 11.5488 5.14651 11.3536L5.85361 10.6464C6.04888 10.4512 6.36546 10.4512 6.56072 10.6464L10.5001 14.5858L17.4394 7.64645C17.6347 7.45118 17.9512 7.45118 18.1465 7.64645L18.8536 8.35355Z"></path>
-                        </svg>
-                      </div>
+                  <div class="login-agreement">
+                    <input
+                      :id="agreementInputId"
+                      v-model="agreementChecked"
+                      type="checkbox"
+                      class="login-agreement-checkbox"
+                      aria-describedby="login-agreement-description login-agreement-required-hint"
+                    >
+                    <label :for="agreementInputId" class="login-agreement-label">{{ agreementTextPrefix }}</label>
+                    <span id="login-agreement-description" class="login-agreement-links">
+                      <a class="link-text" :href="userAgreementHref" :target="policySettings.userAgreementUrl ? '_blank' : undefined" rel="noreferrer" @click.stop>{{ policySettings.userAgreementTitle }}</a>
+                      <span>、</span>
+                      <a class="link-text" :href="privacyPolicyHref" :target="policySettings.privacyPolicyUrl ? '_blank' : undefined" rel="noreferrer" @click.stop>{{ policySettings.privacyPolicyTitle }}</a>
+                      <span>、</span>
+                      <a class="link-text" :href="aiNoticeHref" :target="policySettings.aiNoticeUrl ? '_blank' : undefined" rel="noreferrer" @click.stop>{{ policySettings.aiNoticeTitle }}</a>
                     </span>
-                    <span class="lv-checkbox-text">
-                      <span class="agreement-text">
-                        <span>{{ agreementTextPrefix }}</span>
-                        <a class="link-text" :href="userAgreementHref" :target="policySettings.userAgreementUrl ? '_blank' : undefined" rel="noreferrer">{{ policySettings.userAgreementTitle }}</a>
-                        <span>、</span>
-                        <a class="link-text" :href="privacyPolicyHref" :target="policySettings.privacyPolicyUrl ? '_blank' : undefined" rel="noreferrer">{{ policySettings.privacyPolicyTitle }}</a>
-                        <span>、</span>
-                        <a class="link-text" :href="aiNoticeHref" :target="policySettings.aiNoticeUrl ? '_blank' : undefined" rel="noreferrer">{{ policySettings.aiNoticeTitle }}</a>
-                      </span>
-                    </span>
-                  </label>
+                  </div>
+                  <p
+                    v-if="policySettings.agreementRequired && !agreementChecked"
+                    id="login-agreement-required-hint"
+                    class="login-agreement-required-hint"
+                    role="status"
+                  >
+                    请先阅读并同意协议后登录
+                  </p>
                 </div>
               </div>
 
@@ -209,6 +206,7 @@ const BODY_SCROLL_LOCK = 'login-modal-scroll-lock'
 
 // 弹窗标题 id。
 const dialogTitleId = 'arco-dialog-login-canana'
+const agreementInputId = 'login-agreement-checkbox'
 
 
 // 目标输入值。
@@ -437,7 +435,7 @@ const handleSendCode = async () => {
     issuedCode.value = String(result.debugCode || '').trim()
     if (issuedCode.value) {
       codeValue.value = issuedCode.value
-      ElMessage.success(`验证码已自动填充：${issuedCode.value}`)
+      ElMessage.success('验证码已自动填充')
     } else {
       ElMessage.success('验证码已发送')
     }
