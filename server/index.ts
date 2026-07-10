@@ -35,6 +35,8 @@ import { isWorkflowDefinitionsPath } from './workflow-definitions/constants'
 import { handleWorkflowDefinitionsRequest } from './workflow-definitions/request-handler'
 import { isGenerationRecordsPath } from './generation-records/constants'
 import { handleGenerationRecordsRequest } from './generation-records/request-handler'
+import { isAccountGenerationHistoryPath } from './account-generation-history/constants'
+import { handleAccountGenerationHistoryRequest } from './account-generation-history/request-handler'
 import { isGenerationSessionsPath } from './generation-sessions/constants'
 import { handleGenerationSessionsRequest } from './generation-sessions/request-handler'
 import { isGenerationTasksPath } from './generation-tasks/constants'
@@ -414,6 +416,14 @@ const REQUEST_ROUTE_STRATEGIES: RequestRouteStrategy[] = [
     match: isStorageConfigsPath,
     handle: async (req, res) => {
       await handleStorageConfigRequest(req, res)
+      return true
+    },
+  },
+  {
+    key: 'account-generation-history',
+    match: isAccountGenerationHistoryPath,
+    handle: async (req, res) => {
+      await handleAccountGenerationHistoryRequest(req, res)
       return true
     },
   },

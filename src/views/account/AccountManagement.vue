@@ -161,32 +161,32 @@
                             <article v-for="task in accountTaskItems" :key="task.id" class="account-task-card">
                               <div class="account-task-card__main">
                                 <div class="account-task-card__head">
-                                  <div class="account-task-card__title">{{ task.title }}</div>
-                                  <span class="account-task-status" :class="`is-${task.status.toLowerCase()}`">
-                                    {{ task.status }}
+                                  <div class="account-task-card__title">{{ formatTaskType(task.type) }}</div>
+                                  <span class="account-task-status account-task-status-label" :class="`is-${task.status.toLowerCase()}`">
+                                    {{ formatTaskStatus(task.status) }}
                                   </span>
                                 </div>
                                 <div class="account-task-card__meta">
                                   <span>{{ task.modelLabel }}</span>
-                                  <span>创建 {{ task.createdAtText }}</span>
-                                  <span v-if="task.finishedAtText">完成 {{ task.finishedAtText }}</span>
+                                  <span>创建 {{ formatAccountDate(task.createdAt) }}</span>
+                                  <span v-if="task.finishedAt">完成 {{ formatAccountDate(task.finishedAt) }}</span>
                                 </div>
-                                <div class="account-task-card__prompt">{{ task.promptText }}</div>
-                                <div v-if="task.failureReason" class="account-task-card__error">
-                                  失败原因：{{ task.failureReason }}
+                                <div class="account-task-card__prompt">{{ task.promptSummary }}</div>
+                                <div v-if="task.errorSummary" class="account-task-card__error">
+                                  失败原因：{{ task.errorSummary }}
                                 </div>
                                 <div class="account-task-card__summary">
                                   <span>结果 {{ task.resultCount }} 个</span>
-                                  <span>{{ task.pointsSummary }}</span>
+                                  <span>{{ formatTaskPointsSummary(task) }}</span>
+                                  <span>{{ formatTaskRefundSummary(task) }}</span>
                                 </div>
                               </div>
                               <button
                                   class="account-task-card__action"
                                   type="button"
-                                  :disabled="!task.canViewResult"
-                                  @click="openTaskResult(task)"
+                                  @click="openGenerationHistoryDetail(task)"
                               >
-                                查看结果
+                                查看详情
                               </button>
                             </article>
                           </div>
@@ -351,6 +351,64 @@
     </div>
 
     <template #after>
+      <el-dialog
+          v-model="generationHistoryDetailOpen"
+          class="generation-history-detail"
+          title="生成任务详情"
+          width="min(680px, calc(100vw - 32px))"
+          append-to-body
+      >
+        <div v-if="selectedGenerationHistoryItem" class="generation-history-detail__body">
+          <div class="generation-history-detail__head">
+            <div>
+              <div class="generation-history-detail__eyebrow">任务 {{ selectedGenerationHistoryItem.safeTaskId }}</div>
+              <h3>{{ formatTaskType(selectedGenerationHistoryItem.type) }}</h3>
+            </div>
+            <span class="account-task-status" :class="`is-${selectedGenerationHistoryItem.status.toLowerCase()}`">
+              {{ formatTaskStatus(selectedGenerationHistoryItem.status) }}
+            </span>
+          </div>
+
+          <dl class="generation-history-detail__summary">
+            <div><dt>模型</dt><dd>{{ selectedGenerationHistoryItem.modelLabel }}</dd></div>
+            <div><dt>输入参数</dt><dd>{{ selectedGenerationHistoryItem.inputSummary }}</dd></div>
+            <div><dt>创建时间</dt><dd>{{ formatAccountDate(selectedGenerationHistoryItem.createdAt) }}</dd></div>
+            <div><dt>结果数量</dt><dd>{{ selectedGenerationHistoryItem.resultCount }}</dd></div>
+            <div><dt>积分消耗</dt><dd>{{ selectedGenerationHistoryItem.pointCost }}</dd></div>
+            <div><dt>退款 / 补偿</dt><dd>{{ formatTaskRefundSummary(selectedGenerationHistoryItem) }}</dd></div>
+          </dl>
+
+          <section class="generation-history-detail__section">
+            <h4>提示词摘要</h4>
+            <p>{{ selectedGenerationHistoryItem.promptSummary }}</p>
+          </section>
+
+          <section v-if="selectedGenerationHistoryItem.errorSummary" class="generation-history-detail__section generation-history-detail__section--error">
+            <h4>失败摘要</h4>
+            <p>{{ selectedGenerationHistoryItem.errorSummary }}</p>
+          </section>
+
+          <section class="generation-history-detail__section">
+            <h4>状态时间线</h4>
+            <ol class="generation-history-detail__timeline">
+              <li v-for="event in selectedGenerationHistoryItem.timeline" :key="`${event.key}-${event.at}`">
+                <span>{{ formatTaskTimelineStatus(event.key) }}</span>
+                <time>{{ formatAccountDate(event.at) }}</time>
+              </li>
+            </ol>
+          </section>
+
+          <section class="generation-history-detail__section generation-history-detail__result">
+            <h4>结果</h4>
+            <div v-if="selectedGenerationHistoryItem.hasLocalDemoResult" class="generation-history-local-preview">
+              本地 demo 结果占位可查看；未加载任何外部文件。
+            </div>
+            <p v-else-if="selectedGenerationHistoryItem.status === 'COMPLETED'">任务已完成，但当前没有可展示的本地结果。</p>
+            <p v-else>当前状态不展示作品；no-call 环境不支持重新提交或重新生成。</p>
+          </section>
+        </div>
+      </el-dialog>
+
       <HomeDetailModalFrom
           v-model="workDetailOpen"
           :image-src="workDetailImageSrc"
@@ -380,7 +438,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontstagePageShell from '@/components/layout/FrontstagePageShell.vue'
 import HomeDetailModalFrom from '@/components/home/components/HomeDetailModalFrom.vue'
 import { applyAssetAction, listAssetItems, type PersistedAssetItem } from '@/api/asset-items'
-import { listGenerationRecords, type PersistedGenerationRecord } from '@/api/generation-records'
+import { listAccountGenerationHistory, type AccountGenerationHistoryItem } from '@/api/account-generation-history'
 import { buildAssetUrl } from '@/api/http'
 import {
   buildPlainMasonryLayoutsFromSizes,
@@ -413,23 +471,6 @@ interface AccountFeedItem {
 }
 
 // 默认头像占位图，避免无头像用户在个人中心中显示为空白。
-type AccountTaskStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'STOPPED'
-
-interface AccountTaskSummary {
-  id: string
-  title: string
-  status: AccountTaskStatus
-  createdAtText: string
-  finishedAtText: string
-  modelLabel: string
-  promptText: string
-  failureReason: string
-  resultCount: number
-  pointsSummary: string
-  canViewResult: boolean
-  record: PersistedGenerationRecord
-}
-
 const EMPTY_AVATAR_DATA_URI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' rx='100' fill='%23E5E7EB'/%3E%3Ccircle cx='100' cy='76' r='30' fill='%239CA3AF'/%3E%3Cpath d='M52 154c8-24 28-38 48-38s40 14 48 38' fill='%239CA3AF'/%3E%3C/svg%3E"
 const EMPTY_ASSET_DATA_URI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='360' viewBox='0 0 480 360'%3E%3Crect width='480' height='360' rx='24' fill='%2321262f'/%3E%3Cpath d='M156 232l58-64 43 44 28-30 39 50H156z' fill='%23586573'/%3E%3Ccircle cx='312' cy='132' r='22' fill='%23717b8c'/%3E%3Ctext x='240' y='286' text-anchor='middle' font-family='Arial,sans-serif' font-size='24' fill='%23aeb7c5'%3EPreview unavailable%3C/text%3E%3C/svg%3E"
 
@@ -449,7 +490,7 @@ const secondaryTab = ref<'inspiration' | 'short-video'>('inspiration')
 
 // 个人中心作品列表。
 const accountFeedItems = ref<AccountFeedItem[]>([])
-const accountTaskRecords = ref<PersistedGenerationRecord[]>([])
+const accountGenerationHistory = ref<AccountGenerationHistoryItem[]>([])
 const accountTasksLoading = ref(false)
 const accountTasksError = ref(false)
 
@@ -459,6 +500,8 @@ const accountMarketingError = ref(false)
 
 // 详情弹层状态。
 const workDetailOpen = ref(false)
+const generationHistoryDetailOpen = ref(false)
+const selectedGenerationHistoryItem = ref<AccountGenerationHistoryItem | null>(null)
 
 // 当前详情画廊。
 const workDetailGallery = ref<AccountFeedItem[]>([])
@@ -545,83 +588,37 @@ const formatAccountDate = (value: unknown) => {
 const membershipStartText = computed(() => formatAccountDate(activeSubscription.value?.startTime))
 const membershipEndText = computed(() => formatAccountDate(activeSubscription.value?.endTime))
 
-const getRecordResultUrls = (record: PersistedGenerationRecord) => {
-  const outputUrls = Array.isArray(record.outputs)
-    ? record.outputs
-        .filter(output => ['image', 'video'].includes(String(output.outputType || '').toLowerCase()) && output.url)
-        .map(output => buildAssetUrl(output.url || ''))
-    : []
-  const imageUrls = Array.isArray(record.images) ? record.images.map(buildAssetUrl) : []
-  return Array.from(new Set([...outputUrls, ...imageUrls].filter(Boolean)))
+const accountTaskItems = computed<AccountGenerationHistoryItem[]>(() => accountGenerationHistory.value.slice(0, 8))
+
+const formatTaskType = (type: string) => ({
+  IMAGE: '图片生成任务',
+  VIDEO: '视频生成任务',
+  RESEARCH: '研究任务',
+}[String(type || '').toUpperCase()] || '生成任务')
+
+const formatTaskStatus = (status: AccountGenerationHistoryItem['status']) => ({
+  PENDING: '等待处理',
+  RUNNING: '处理中',
+  COMPLETED: '已完成',
+  FAILED: '生成失败',
+  STOPPED: '已停止',
+}[status] || '等待处理')
+
+const formatTaskRefundSummary = (task: AccountGenerationHistoryItem) => {
+  if (task.refundStatus === 'REFUNDED') return `已退回 ${task.refundedPoints} 积分`
+  if (task.refundStatus === 'PENDING_REFUND') return '待补偿积分'
+  if (task.refundStatus === 'NOT_REQUIRED') return '无需退款'
+  return '退款状态暂无更新'
 }
 
-const getAccountTaskStatus = (record: PersistedGenerationRecord): AccountTaskStatus => {
-  if (record.stopped) return 'STOPPED'
-  if (String(record.error || '').trim()) return 'FAILED'
-  if (record.done) return 'COMPLETED'
-  return record.agentTaskId ? 'RUNNING' : 'PENDING'
+const formatTaskPointsSummary = (task: AccountGenerationHistoryItem) => (
+  task.pointCost > 0 ? `消耗 ${task.pointCost} 积分` : '未扣除积分'
+)
+
+const formatTaskTimelineStatus = (status: string) => {
+  if (status === 'CREATED') return '已创建'
+  return formatTaskStatus(status as AccountGenerationHistoryItem['status'])
 }
-
-const getTaskFailureReason = (record: PersistedGenerationRecord) => {
-  return String(record.error || '').trim()
-}
-
-const getTaskFinishedAtText = (record: PersistedGenerationRecord) => {
-  const rawRecord = record as unknown as Record<string, unknown>
-  const rawFinishedAt = String(rawRecord.finishedAt || '').trim()
-  if (rawFinishedAt) return formatAccountDate(rawFinishedAt)
-  return record.done ? formatAccountDate(record.createdAt) : ''
-}
-
-const getTaskPointsSummary = (record: PersistedGenerationRecord) => {
-  const rawRecord = record as unknown as Record<string, unknown>
-  const pointCost = rawRecord.pointCost ?? rawRecord.pointsCost ?? rawRecord.creditCost ?? rawRecord.costPoints
-  const refundStatus = rawRecord.refundStatus ?? rawRecord.pointsRefundStatus
-  const refunded = rawRecord.refunded
-
-  const fragments: string[] = []
-  if (pointCost !== undefined && pointCost !== null && String(pointCost).trim()) {
-    fragments.push(`消耗 ${pointCost} 积分`)
-  }
-  if (refundStatus !== undefined && refundStatus !== null && String(refundStatus).trim()) {
-    fragments.push(`退款 ${refundStatus}`)
-  } else if (typeof refunded === 'boolean') {
-    fragments.push(refunded ? '已退款' : '未退款')
-  }
-
-  return fragments.length ? fragments.join(' · ') : '积分摘要暂无'
-}
-
-const buildTaskTitle = (record: PersistedGenerationRecord) => {
-  const modelLabel = String(record.model || record.modelKey || '').trim()
-  const sessionTitle = String(record.sessionTitle || '').trim()
-  const typeLabel = String(record.type || '').trim()
-  return modelLabel || sessionTitle || typeLabel || '生成任务'
-}
-
-const buildTaskPromptText = (record: PersistedGenerationRecord) => {
-  return String(record.prompt || record.content || '').trim() || '暂无任务描述'
-}
-
-const accountTaskItems = computed<AccountTaskSummary[]>(() => {
-  return accountTaskRecords.value.slice(0, 8).map((record) => {
-    const resultUrls = getRecordResultUrls(record)
-    return {
-      id: record.id,
-      title: buildTaskTitle(record),
-      status: getAccountTaskStatus(record),
-      createdAtText: formatAccountDate(record.createdAt),
-      finishedAtText: getTaskFinishedAtText(record),
-      modelLabel: String(record.model || record.modelKey || record.type || '未记录模型').trim(),
-      promptText: buildTaskPromptText(record),
-      failureReason: getTaskFailureReason(record),
-      resultCount: resultUrls.length || record.outputs?.length || 0,
-      pointsSummary: getTaskPointsSummary(record),
-      canViewResult: resultUrls.length > 0,
-      record,
-    }
-  })
-})
 
 const loadAccountMarketingOverview = async (force = false) => {
   if (!authStore.isLoggedIn.value) {
@@ -818,7 +815,7 @@ const loadAccountFeedItems = async () => {
 // 点击锁定标签时给出轻提示，和参考页的禁用感一致。
 const loadAccountTaskRecords = async () => {
   if (!authStore.isLoggedIn.value) {
-    accountTaskRecords.value = []
+    accountGenerationHistory.value = []
     accountTasksError.value = false
     return
   }
@@ -826,11 +823,11 @@ const loadAccountTaskRecords = async () => {
   try {
     accountTasksLoading.value = true
     accountTasksError.value = false
-    const records = await listGenerationRecords()
-    accountTaskRecords.value = Array.isArray(records) ? records : []
+    const records = await listAccountGenerationHistory()
+    accountGenerationHistory.value = Array.isArray(records) ? records : []
   } catch (error) {
     console.warn('读取个人生成任务失败', error)
-    accountTaskRecords.value = []
+    accountGenerationHistory.value = []
     accountTasksError.value = true
   } finally {
     accountTasksLoading.value = false
@@ -877,37 +874,9 @@ const handleLogout = async () => {
 }
 
 // 打开作品详情弹层。
-const mapTaskResultToFeedItem = (
-    task: AccountTaskSummary,
-    imageSrc: string,
-    index: number,
-): AccountFeedItem => ({
-  id: `${task.id}-result-${index}`,
-  ownerId: authStore.currentUser.value?.id || '',
-  imageSrc: imageSrc || EMPTY_ASSET_DATA_URI,
-  promptText: task.record.prompt || task.promptText,
-  authorName: displayUserName.value,
-  authorAvatarSrc: resolvedProfileAvatar.value,
-  favoriteCount: 0,
-  modelLabel: task.modelLabel,
-  aspectRatioLabel: task.record.ratio || '1:1',
-  createDate: task.createdAtText,
-  aiGeneratedText: '内容由 AI 生成',
-  promptTipLabel: '生成提示词',
-  badgeText: task.status === 'COMPLETED' ? '' : task.status,
-  assetType: task.record.type === 'video' ? 'video' : 'image',
-  publishStatus: 'readonly',
-  visibility: 'private',
-  reviewStatus: 'approved',
-})
-
-const openTaskResult = (task: AccountTaskSummary) => {
-  const resultUrls = getRecordResultUrls(task.record)
-  if (!resultUrls.length) return
-
-  workDetailGallery.value = resultUrls.map((url, index) => mapTaskResultToFeedItem(task, url, index))
-  workDetailGalleryIndex.value = 0
-  workDetailOpen.value = true
+const openGenerationHistoryDetail = (task: AccountGenerationHistoryItem) => {
+  selectedGenerationHistoryItem.value = task
+  generationHistoryDetailOpen.value = true
 }
 
 const openWorkDetail = (id: string) => {
@@ -1083,7 +1052,7 @@ watch(
         void loadAccountMarketingOverview(true)
         return
       }
-      accountTaskRecords.value = []
+      accountGenerationHistory.value = []
       accountTasksError.value = false
       accountTasksLoading.value = false
       marketingCenterStore.clearOverview()
