@@ -86,5 +86,8 @@ describe('user generation history readonly no-call', () => {
     assert.doesNotMatch(service, /signed url/i)
     assert.match(css, /@media \(max-width: 480px\)/)
     assert.match(css, /\.generation-history-detail__summary[\s\S]*grid-template-columns:\s*1fr/)
+    assert.match(css, /@media \(max-width: 480px\)[\s\S]*\.account-task-overview[\s\S]*min-width:\s*0[\s\S]*width:\s*100%/)
+    assert.match(css, /\.generation-history-detail\s*\{[\s\S]*--el-dialog-bg-color:\s*#[0-9a-f]{6}/i)
+    assert.match(css, /\.generation-history-detail[\s\S]*\.el-dialog__title[\s\S]*color:\s*#[0-9a-f]{6}/i)
   })
 })

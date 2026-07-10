@@ -1132,8 +1132,23 @@
   padding-top: 8px;
 }
 
+.generation-history-detail {
+  --el-dialog-bg-color: #16202c;
+  --el-text-color-primary: #f5fbff;
+  --el-text-color-regular: #d8e8f5;
+  --el-text-color-secondary: #aac2d5;
+  background: #16202c;
+  border: 1px solid #36516a;
+  color: #f5fbff;
+}
+
+.generation-history-detail .el-dialog__title,
+.generation-history-detail .el-dialog__headerbtn {
+  color: #f5fbff;
+}
+
 .generation-history-detail__body {
-  color: var(--text-primary, #1f2937);
+  color: #f5fbff;
   min-width: 0;
 }
 
@@ -1157,7 +1172,7 @@
 }
 
 .generation-history-detail__eyebrow {
-  color: var(--text-secondary, #64748b);
+  color: #aac2d5;
   font-size: 12px;
   line-height: 18px;
   margin-bottom: 4px;
@@ -1175,7 +1190,7 @@
 }
 
 .generation-history-detail__summary dt {
-  color: var(--text-secondary, #64748b);
+  color: #aac2d5;
   font-size: 12px;
   line-height: 18px;
   margin-bottom: 2px;
@@ -1187,7 +1202,7 @@
 }
 
 .generation-history-detail__section {
-  border-top: 1px solid var(--border-color, #e5e7eb);
+  border-top: 1px solid #36516a;
   padding: 16px 0;
 }
 
@@ -1197,14 +1212,14 @@
 }
 
 .generation-history-detail__section p {
-  color: var(--text-secondary, #475569);
+  color: #d8e8f5;
   line-height: 22px;
   margin: 8px 0 0;
   overflow-wrap: anywhere;
 }
 
 .generation-history-detail__section--error p {
-  color: #b42318;
+  color: #ffb4b4;
 }
 
 .generation-history-detail__timeline {
@@ -1224,15 +1239,15 @@
 }
 
 .generation-history-detail__timeline time {
-  color: var(--text-secondary, #64748b);
+  color: #aac2d5;
   white-space: nowrap;
 }
 
 .generation-history-local-preview {
   align-items: center;
-  background: #edf7f1;
-  border: 1px solid #9ed4af;
-  color: #216b3b;
+  background: #173a31;
+  border: 1px solid #3d8c70;
+  color: #c7f5df;
   display: flex;
   font-size: 13px;
   line-height: 20px;
@@ -1241,6 +1256,26 @@
 }
 
 @media (max-width: 480px) {
+  .container-xPaqsy > .scroll-container-AhepyD,
+  .container-xPaqsy > .scroll-container-AhepyD > div,
+  .container-xPaqsy .right-container-VcENyg,
+  .container-xPaqsy .scroll-container-B4jFKc,
+  .container-xPaqsy .scroll-container-B4jFKc > div,
+  .container-xPaqsy .scroll-content-Hn6N56,
+  .account-task-overview {
+    box-sizing: border-box;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .account-task-list,
+  .account-task-card,
+  .account-task-card__main,
+  .account-task-card__action {
+    max-width: 100%;
+    min-width: 0;
+  }
+
   .generation-history-detail__head {
     align-items: stretch;
     flex-direction: column;

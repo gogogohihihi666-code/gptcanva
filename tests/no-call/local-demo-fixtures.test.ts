@@ -44,8 +44,14 @@ describe('local no-call demo fixtures', () => {
     assert.ok(dataset.membershipOrders.some(order => order.status === 'FAILED'))
     assert.ok(dataset.rechargeOrders.some(order => order.payStatus === 'PAYING'))
     assert.ok(dataset.rechargeOrders.some(order => order.payStatus === 'PAID'))
-    assert.ok(dataset.generationRecords.some(record => record.status === 'FAILED'))
-    assert.ok(dataset.generationRecords.some(record => record.status === 'STOPPED'))
+    const generationStatuses = new Set(dataset.generationRecords.map(record => record.status))
+    for (const status of ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'STOPPED']) {
+      assert.equal(generationStatuses.has(status), true, `missing ${status} demo generation record`)
+    }
+    const pendingRecord = dataset.generationRecords.find(record => record.status === 'PENDING')
+    assert.ok(pendingRecord)
+    assert.equal(pendingRecord.content, null)
+    assert.equal(pendingRecord.errorMessage, null)
     assert.ok(dataset.pointLogs.some(log => log.changeType === 'CONSUME'))
     assert.ok(dataset.pointLogs.some(log => log.changeType === 'REFUND'))
     assert.ok(dataset.pointLogs.some(log => log.sourceType === 'ADMIN_ADJUST'))
@@ -117,7 +123,7 @@ describe('local no-call demo fixtures', () => {
     assert.equal(counts.users, 1)
     assert.equal(counts.membershipOrders >= 4, true)
     assert.equal(counts.rechargeOrders >= 3, true)
-    assert.equal(counts.generationRecords >= 4, true)
+    assert.equal(counts.generationRecords >= 5, true)
     assert.equal(counts.pointLogs >= 5, true)
     assert.equal(counts.auditLogs >= 4, true)
   })
@@ -144,7 +150,7 @@ describe('local no-call demo fixtures', () => {
     const store = __noCallDemoFixtureTestHooks.createInMemoryStore()
     store.insertNonDemoSentinel()
 
-    await seedNoCallDemoFixtures({
+    const first = await seedNoCallDemoFixtures({
       env: allowedEnv,
       store,
       now: new Date('2026-07-07T08:00:00.000Z'),
@@ -155,6 +161,7 @@ describe('local no-call demo fixtures', () => {
     })
 
     assert.equal(clean.removedTotal > 0, true)
+    assert.equal(clean.removedTotal, first.createdTotal)
     assert.equal(store.countMarkedDemoRecords(), 0)
     assert.equal(store.hasNonDemoSentinel(), true)
     assert.equal(clean.preservedNonDemoRecords, true)

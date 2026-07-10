@@ -178,6 +178,18 @@ export const buildNoCallDemoFixtureDataset = (now = new Date()) => {
 
   const generationRecords = [
     {
+      id: buildFixtureId('generation-pending'),
+      status: 'PENDING',
+      type: 'IMAGE',
+      prompt: 'local no-call demo pending image',
+      content: null as string | null,
+      errorMessage: null as string | null,
+      modelLabel: 'Demo Local Model',
+      modelKey: 'demo-local-model',
+      createdAt: daysAgo(now, 0),
+      metaJson: demoMeta('generation-record', { scenario: 'pending-task-placeholder' }),
+    },
+    {
       id: buildFixtureId('generation-completed'),
       status: 'COMPLETED',
       type: 'IMAGE',
@@ -250,10 +262,10 @@ export const buildNoCallDemoFixtureDataset = (now = new Date()) => {
       balanceAfter: 920,
       availableAmount: 0,
       sourceType: 'GENERATION_CONSUME',
-      sourceId: generationRecords[1].id,
+      sourceId: generationRecords[2].id,
       associationNo: 'DEMO-GEN-REFUNDED',
       remark: 'demo no-call generation consume',
-      metaJson: demoMeta('point-log', { generationRecordId: generationRecords[1].id, endpointType: 'image', providerId: 'demo-provider', modelKey: 'demo-local-model', modelName: 'Demo Local Model' }),
+      metaJson: demoMeta('point-log', { generationRecordId: generationRecords[2].id, endpointType: 'image', providerId: 'demo-provider', modelKey: 'demo-local-model', modelName: 'Demo Local Model' }),
       createdAt: daysAgo(now, 1),
     },
     {
@@ -266,10 +278,10 @@ export const buildNoCallDemoFixtureDataset = (now = new Date()) => {
       balanceAfter: 1000,
       availableAmount: 80,
       sourceType: 'GENERATION_CONSUME',
-      sourceId: generationRecords[1].id,
+      sourceId: generationRecords[2].id,
       associationNo: 'DEMO-GEN-REFUNDED',
       remark: 'demo no-call generation refund',
-      metaJson: demoMeta('point-log', { generationRecordId: generationRecords[1].id, endpointType: 'image', providerId: 'demo-provider', modelKey: 'demo-local-model', modelName: 'Demo Local Model' }),
+      metaJson: demoMeta('point-log', { generationRecordId: generationRecords[2].id, endpointType: 'image', providerId: 'demo-provider', modelKey: 'demo-local-model', modelName: 'Demo Local Model' }),
       createdAt: daysAgo(now, 1),
     },
     {
@@ -282,10 +294,10 @@ export const buildNoCallDemoFixtureDataset = (now = new Date()) => {
       balanceAfter: 880,
       availableAmount: 0,
       sourceType: 'GENERATION_CONSUME',
-      sourceId: generationRecords[2].id,
+      sourceId: generationRecords[3].id,
       associationNo: 'DEMO-GEN-PENDING-REFUND',
       remark: 'demo no-call pending refund',
-      metaJson: demoMeta('point-log', { generationRecordId: generationRecords[2].id, endpointType: 'image', providerId: 'demo-provider', modelKey: 'demo-local-model', modelName: 'Demo Local Model' }),
+      metaJson: demoMeta('point-log', { generationRecordId: generationRecords[3].id, endpointType: 'image', providerId: 'demo-provider', modelKey: 'demo-local-model', modelName: 'Demo Local Model' }),
       createdAt: daysAgo(now, 2),
     },
     {
@@ -416,8 +428,8 @@ export const buildNoCallDemoFixtureDataset = (now = new Date()) => {
       id: buildFixtureId('audit-generation-failed'),
       action: 'admin_generation_points_compensate',
       targetType: 'generation_record',
-      targetId: generationRecords[2].id,
-      beforeJson: demoMeta('audit-before', { generationRecordId: generationRecords[2].id, refundStatus: 'PENDING_REFUND' }),
+      targetId: generationRecords[3].id,
+      beforeJson: demoMeta('audit-before', { generationRecordId: generationRecords[3].id, refundStatus: 'PENDING_REFUND' }),
       afterJson: demoMeta('audit-after', { reviewed: true, noCall: true }),
       createdAt: daysAgo(now, 2),
     },
@@ -486,7 +498,7 @@ export const buildNoCallDemoFixtureDataset = (now = new Date()) => {
     generationOutputs: [
       {
         id: buildFixtureId('generation-output-completed'),
-        generationRecordId: generationRecords[0].id,
+        generationRecordId: generationRecords[1].id,
         outputType: 'IMAGE',
         url: '/demo/no-call/local-placeholder-image.png',
         textContent: null as string | null,
@@ -500,7 +512,7 @@ export const buildNoCallDemoFixtureDataset = (now = new Date()) => {
     assets: [
       {
         id: buildFixtureId('asset-completed'),
-        generationRecordId: generationRecords[0].id,
+        generationRecordId: generationRecords[1].id,
         generationOutputId: buildFixtureId('generation-output-completed'),
         assetType: 'IMAGE',
         title: 'Demo no-call placeholder asset',
@@ -510,8 +522,8 @@ export const buildNoCallDemoFixtureDataset = (now = new Date()) => {
         thumbnailUrl: '/demo/no-call/local-placeholder-image.png',
         width: 1024,
         height: 1024,
-        promptText: generationRecords[0].prompt,
-        modelLabel: generationRecords[0].modelLabel,
+        promptText: generationRecords[1].prompt,
+        modelLabel: generationRecords[1].modelLabel,
         aspectRatio: '1:1',
         sourceMetaJson: demoMeta('asset', { placeholderOnly: true }),
       },
