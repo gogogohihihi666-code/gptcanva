@@ -10,7 +10,9 @@ This report summarizes the current local no-call acceptance status and the relea
 
 The local no-call MVP has passed acceptance for the currently authorized scope.
 
-Frozen no-call MVP baseline: `b77ee69`.
+Frozen no-call MVP code baseline: `7527333`.
+
+The later documentation-only commit records this code baseline and does not change the code acceptance conclusion.
 
 This does not mean that real AI Provider integration, real payment integration, real OSS / S3 upload, or production deployment is complete. All real external calls remain forbidden by default, and GitHub push remains parked until separately authorized.
 
@@ -54,13 +56,17 @@ Current operating posture:
 - Fixture reuse of an existing local ordinary user, with explicit refusal to bind fixture data to an administrator.
 - `/account` mobile content width chain verified at 390px without using clipping as the layout fix.
 - Dark-theme generation detail dialog contrast verified.
+- OKWook brand and `www.okwook.com` frontend integration verified locally.
+- Anonymous authentication-route acceptance for `/`, `/login`, `/register`, `/account`, and protected administrator routes.
+- `/login` opens the ordinary user login UI instead of an empty route.
+- `/register` opens the ordinary user registration entry, which explains that first successful verification-code login creates the account through the existing `allowSignUp` behavior.
 
 ## Acceptance Summary
 
 Latest automated and manual acceptance evidence:
 
-- Latest frozen-baseline regression: PASS at `b77ee69`.
-- `npm.cmd run test`: PASS, 70 tests passed.
+- Latest frozen code baseline: PASS at `7527333`.
+- `npm.cmd run test`: PASS, 76 tests passed.
 - `npm.cmd run build:service`: PASS.
 - `npm.cmd run build`: PASS.
 - First `npm.cmd run seed:no-call-demo`: PASS, `createdTotal=37`, `updatedTotal=0`, `removedTotal=0`.
@@ -75,6 +81,17 @@ Latest automated and manual acceptance evidence:
 - `/admin/audit-logs` populated demo scenario: PASS, including readonly detail and redacted before / after display.
 - `/admin/dashboard` populated demo scenario: PASS.
 - `/generate` no-call guidance: PASS.
+- Anonymous authentication and route-context acceptance: PASS.
+  - `/` shows OKWook, both approved slogans, and `www.okwook.com`; it exposes only ordinary-user phone or email verification-code login and does not display administrator account fields or `ADMIN_PASSWORD`.
+  - `/login` is a usable ordinary-user login entry, defaults to phone verification code, supports phone/email switching, and preserves its context after refresh.
+  - `/register` is a usable ordinary-user entry, states that first verification-code login creates an account, supports phone/email switching, keeps the existing `allowSignUp` rules, and does not add a registration API or bypass verification.
+  - The user-agreement checkbox is operable through normal UI interaction; the registration entry does not expose administrator fields.
+  - Anonymous `/account` redirects with `mode=user`; `/account?tab=tasks` preserves the safe query in its redirect, and the user context remains after refresh.
+  - Anonymous administrator routes preserve `mode=admin` and their original redirects: `/admin/dashboard`, `/admin/providers`, `/admin/storage`, `/admin/provider-health`, `/admin/orders`, `/admin/generations`, and `/admin/audit-logs`.
+  - Administrator login context does not show ordinary-user login inputs as the administrator entry; unauthenticated visitors do not see administrator content, and refresh preserves the context. `mode=admin` does not grant administrator permission; the ordinary-user administrator guard remains effective.
+  - Redirect validation rejects external HTTPS URLs, double-slash URLs, encoded double-slash URLs, `javascript:` URLs, and other malicious external targets.
+  - `/install` returns safely to `/` after initialization, does not show a re-initialization form, and does not trigger initialization writes.
+  - Mobile acceptance: `/`, `/login`, and `/register` PASS at 390px with `scrollWidth/clientWidth = 390/390`; login and registration dialogs have approximately 374px visible width.
 - User-facing plan / membership / point recharge parked UI: PASS.
   - Membership and point packages remain visible.
   - Parked state states that no real payment order or local order is created.
@@ -145,6 +162,7 @@ Any authorization must name the provider, model, payment provider, storage targe
 - Real AI Provider has not been smoke tested.
 - OSS / S3 has not been tested with a real upload path.
 - `/account` demo user scenario is verified locally, but production user-account smoke remains pending.
+- Authenticated administrator brand-shell acceptance remains a separate coverage item until an explicitly authorized administrator session is used.
 - Production environment variables have not been injected.
 - Production deployment has not been rehearsed.
 - Rollback and backup procedures have not been rehearsed.

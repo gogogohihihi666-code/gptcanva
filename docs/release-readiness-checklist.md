@@ -10,7 +10,8 @@ Last frozen baseline update: 2026-07-11.
 
 ## Current Frozen Version
 
-- Current HEAD: `b77ee69`.
+- Current frozen code baseline: `7527333`.
+- Documentation commits after this point record the baseline only and do not alter its code acceptance conclusion.
 - Current status: local no-call MVP frozen.
 - GitHub push status: not pushed.
 - Deployment status: not deployed.
@@ -19,11 +20,11 @@ Last frozen baseline update: 2026-07-11.
 - Real AI Provider calls: forbidden.
 - Real OSS / S3 upload, read, delete, and signed URL tests: forbidden.
 
-The frozen local state has passed the authorized no-call checks, including backend/admin no-call flows, `/generate` no-call guidance, `/account` demo user acceptance, readonly generation history and result details, local demo fixture seed / clean, user-facing payment parked UI, and dev server env bootstrap.
+The frozen local state has passed the authorized no-call checks, including backend/admin no-call flows, `/generate` no-call guidance, `/account` demo user acceptance, readonly generation history and result details, local demo fixture seed / clean, user-facing payment parked UI, dev server env bootstrap, OKWook brand integration, and anonymous authentication-route acceptance.
 
-Latest frozen-baseline regression evidence at `b77ee69`:
+Latest frozen-baseline regression evidence at `7527333`:
 
-- `npm.cmd run test`: PASS, 70 tests passed.
+- `npm.cmd run test`: PASS, 76 tests passed.
 - `npm.cmd run build:service`: PASS.
 - `npm.cmd run build`: PASS.
 - First `npm.cmd run seed:no-call-demo`: PASS, `createdTotal=37`.
@@ -48,6 +49,15 @@ Additional modules included in the frozen baseline:
 - Fixture reuses an existing local ordinary user, preserves that user during clean, and explicitly refuses an administrator email collision.
 - Account task content-width chain is accepted at 390px: 390px global shell, 314px task content/card, 284px action, fully visible 49px status label, and `scrollWidth/clientWidth = 390/390` without relying on clipping to hide an oversized layout.
 - Dark-theme generation detail dialog contrast is accepted; the 1280px desktop layout remains accepted.
+- OKWook and `www.okwook.com` user-visible brand integration is accepted for local no-call use.
+- Anonymous `/` acceptance: the approved brand, Chinese and English slogans, and domain are present; only ordinary-user phone/email verification-code login is shown; no administrator account field or `ADMIN_PASSWORD` is displayed.
+- `/login` acceptance: the independent route opens a usable ordinary-user login UI, defaults to phone verification-code login, supports phone/email switching, and restores its context after refresh.
+- `/register` acceptance: the independent route opens a usable ordinary-user entry; it states that first verification-code login creates the account, supports phone/email switching, has an operable agreement checkbox, exposes no administrator fields, adds no registration API, preserves `allowSignUp`, and does not bypass verification.
+- Anonymous `/account` acceptance: `mode=user` and safe redirects are retained for `/account` and `/account?tab=tasks`, including after refresh.
+- Administrator route-context acceptance: `/admin/dashboard`, `/admin/providers`, `/admin/storage`, `/admin/provider-health`, `/admin/orders`, `/admin/generations`, and `/admin/audit-logs` retain `mode=admin` and their original safe redirect. Unauthenticated visitors do not see administrator content; the administrator entry does not substitute ordinary-user login inputs; refresh retains the context; `mode=admin` does not grant administrator permission; the ordinary-user administrator guard remains effective.
+- Redirect validation accepts only safe same-origin paths and rejects external HTTPS targets, double-slash targets, encoded double-slash targets, `javascript:` targets, and other malicious external redirects.
+- `/install` acceptance: after initialization it returns safely to `/`, does not present a re-initialization form, and does not trigger initialization writes.
+- Mobile route acceptance: `/`, `/login`, and `/register` PASS at 390px with `scrollWidth/clientWidth = 390/390`; login and registration dialogs have approximately 374px visible width.
 
 ## Brand And Domain Record
 
@@ -74,6 +84,7 @@ Before release work can begin, complete and record the following:
 - Configure domain, HTTPS, and reverse proxy routing.
 - Configure logs, retention, and alerting.
 - Check administrator account security, including password policy and access scope.
+- Complete a separately authorized authenticated-administrator brand-shell acceptance if it is required before release.
 
 ## Domain Go-Live Checklist
 
