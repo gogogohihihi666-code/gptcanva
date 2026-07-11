@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useSystemInitStore } from '../stores/system-init'
 import { useLoadingStore } from '../stores/loading'
+import { buildLoginRouteContext } from './login-route-context'
 
 // 核心页面懒加载，避免全部进入主 bundle 拖慢首屏
 const Home = () => import('../views/home/home.vue')
@@ -42,6 +43,11 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'Home',
+    component: Home,
+  },
+  {
+    path: '/login',
+    name: 'Login',
     component: Home,
   },
   {
@@ -316,16 +322,15 @@ router.beforeEach(async (to) => {
     await authStore.loadSession()
   }
 
+  const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin === true)
   if (!authStore.isLoggedIn.value) {
-    return {
-      path: '/',
-      query: {
-        login: '1',
-      },
-    }
+    return buildLoginRouteContext({
+      fullPath: to.fullPath,
+      requiresAdmin,
+    })
   }
 
-  if (to.meta?.requiresAdmin && !authStore.isAdmin.value) {
+  if (requiresAdmin && !authStore.isAdmin.value) {
     return {
       path: '/admin-forbidden',
     }

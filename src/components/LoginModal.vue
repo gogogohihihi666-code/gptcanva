@@ -188,7 +188,7 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import type { AuthMethodType } from '@/api/auth'
+import type { AuthMethodType, PublicAuthMethod } from '@/api/auth'
 import { createOAuthAuthorizeUrl, requestAuthVerificationCode } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
 import { useSystemSettingsStore } from '@/stores/system-settings'
@@ -202,6 +202,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:visible': [value: boolean]
+  'login-success': []
 }>()
 
 // 登录弹窗滚动锁定类名。
@@ -245,11 +246,14 @@ const systemSettingsStore = useSystemSettingsStore()
 
 // 管理员密码入口只在受保护的后台路由触发登录时提供，避免普通用户登录被管理员表单误导。
 const isAdminLoginContext = computed(() => props.source === 'admin-route-guard')
+const isAdminPasswordMethod = (method: PublicAuthMethod) => method.category === 'PASSWORD' && method.iconType === 'admin'
 
 // 所有可直接交互的登录方式（密码 + 验证码）。
 const interactiveMethods = computed(() => authStore.enabledMethods.value.filter(item => {
   if (item.category === 'OAUTH') return false
-  return isAdminLoginContext.value || item.methodType !== 'ADMIN_PASSWORD'
+  return isAdminLoginContext.value
+    ? isAdminPasswordMethod(item)
+    : !isAdminPasswordMethod(item)
 }))
 
 // 所有 OAuth 类登录方式。
@@ -313,7 +317,7 @@ const isTargetValid = computed(() => {
     return false
   }
 
-  if (currentPrimaryMethod.value.methodType === 'ADMIN_PASSWORD') {
+  if (isAdminPasswordMethod(currentPrimaryMethod.value)) {
     return /^[a-zA-Z][a-zA-Z0-9_-]{3,31}$/.test(targetValue.value.trim())
   }
 
@@ -472,6 +476,7 @@ const submitLoginAction = useAsyncAction(async () => {
     code: currentCodeMethod.value ? codeValue.value.trim() : undefined,
     password: currentPasswordMethod.value ? passwordValue.value : undefined,
   })
+  emit('login-success')
   ElMessage.success('登录成功')
   close()
 }, {
