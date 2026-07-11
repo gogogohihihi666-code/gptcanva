@@ -18,3 +18,11 @@ test('public login entry hides administrator authentication and prefers a user c
   assert.match(modal, /const defaultInteractiveMethod = computed\(\(\) => \{[\s\S]*find\(item => item\.category === 'CODE'\)[\s\S]*interactiveMethods\.value\[0\] \|\| null/)
   assert.match(modal, /syncActiveMethod\(true\)/)
 })
+
+test('mobile login and registration modal padding stays inside the viewport', () => {
+  const styles = readProjectFile('src/components/LoginModal.css')
+
+  assert.match(styles, /\.login-modal-host\.lv-modal-wrapper\s*\{[^}]*box-sizing:\s*border-box;/)
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*?padding:\s*16px;/)
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*?\.login-modal-host \.lv-modal-simple\s*\{[\s\S]*?width:\s*min\(100%, 480px\);/)
+})

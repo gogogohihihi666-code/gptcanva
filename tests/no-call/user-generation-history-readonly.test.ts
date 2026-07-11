@@ -95,5 +95,6 @@ describe('user generation history readonly no-call', () => {
     assert.match(generateCss, /@media \(max-width: 480px\)[\s\S]*\.global-dreamina-container[\s\S]*min-width:\s*0/)
     assert.match(css, /@media \(max-width: 480px\)[\s\S]*\.content-wrapper-OzVFU5[\s\S]*min-width:\s*0/)
     assert.match(css, /@media \(max-width: 480px\)[\s\S]*\.content-V2NaRy[\s\S]*min-width:\s*0/)
+    assert.match(css, /@media \(max-width: 1200px\)[\s\S]*?\.container-VHHcGs\s*\{[^}]*box-sizing:\s*border-box;/)
   })
 })

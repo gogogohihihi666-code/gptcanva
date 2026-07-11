@@ -79,6 +79,7 @@ body[lv-theme='light'] .login-modal-host {
 }
 
 .login-modal-host.lv-modal-wrapper {
+  box-sizing: border-box;
   height: 100%;
   left: 0;
   overflow: auto;

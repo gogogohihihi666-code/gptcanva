@@ -1064,6 +1064,7 @@
   }
 
   .container-VHHcGs {
+    box-sizing: border-box;
     flex-basis: auto;
     padding-bottom: 8px;
     width: 100%;
