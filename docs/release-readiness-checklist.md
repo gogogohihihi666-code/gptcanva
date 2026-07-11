@@ -14,10 +14,10 @@ Last frozen baseline update: 2026-07-11.
 
 ## Current Frozen Version
 
-- Current frozen code baseline: `7527333`.
+- Current fully verified no-call code baseline: `c7f6c7a`.
 - Documentation commits after this point record the baseline only and do not alter its code acceptance conclusion.
-- Current status: local no-call MVP frozen.
-- GitHub push status: not pushed.
+- Current status: local no-call MVP revalidated; production readiness has not passed.
+- GitHub synchronization status: `origin/master` remains at the previously pushed baseline and local `master` was 7 commits ahead before this documentation commit. This task performs no push.
 - Deployment status: not deployed.
 - Real external calls: not performed.
 - Real payment calls: forbidden.
@@ -26,9 +26,9 @@ Last frozen baseline update: 2026-07-11.
 
 The frozen local state has passed the authorized no-call checks, including backend/admin no-call flows, `/generate` no-call guidance, `/account` demo user acceptance, readonly generation history and result details, local demo fixture seed / clean, user-facing payment parked UI, dev server env bootstrap, OKWook brand integration, and anonymous authentication-route acceptance.
 
-Latest frozen-baseline regression evidence at `7527333`:
+Latest frozen-baseline regression evidence at `c7f6c7a`:
 
-- `npm.cmd run test`: PASS, 76 tests passed.
+- `npm.cmd run test`: PASS, 104 tests passed.
 - `npm.cmd run build:service`: PASS.
 - `npm.cmd run build`: PASS.
 - First `npm.cmd run seed:no-call-demo`: PASS, `createdTotal=37`.
@@ -37,6 +37,19 @@ Latest frozen-baseline regression evidence at `7527333`:
 - `5409 /api/system-init/status`: PASS, returned 200 JSON.
 - `5010 /api/system-init/status`: PASS, returned 200 JSON.
 - `5010 /`: PASS, did not redirect to `/install`.
+- CI gate: PASS. Ordinary `master` pushes and pull requests run test and build verification only.
+- Image publication: manual `workflow_dispatch` only, pinned to a full commit SHA image tag, with no `latest` tag.
+- Production deployment: manual `workflow_dispatch` only, independent from image publication, pinned to a full commit SHA image tag, protected by concurrency, and bound to the GitHub `production` environment.
+- Automatic `workflow_run` and `repository_dispatch` deployment chains: absent.
+- Browser routes revalidated at 1280px: `/`, `/login`, `/register`, `/account`, seven protected administrator routes, and `/install`.
+- Anonymous route context: PASS. User and administrator modes retain their safe original redirects after refresh.
+- Malicious redirect navigation: remained on the localhost origin; same-origin redirect validation remains covered by automated tests.
+- 390px browser geometry: PASS after fixing login/registration modal and account profile action width chains. `scrollWidth/clientWidth = 390/390`.
+- Login dialog bounds at 390px: left/right `17/373`; registration dialog bounds: `16/374`; account logout action right edge: `374`.
+- Ordinary-user administrator guard: PASS, `/admin/dashboard` resolved to `/admin-forbidden`.
+- Authenticated administrator shell: `HUMAN_LOCAL_ADMIN_AUTH_REQUIRED`; no administrator credential was available or bypassed.
+- Current fixture-populated task-state browser coverage: unavailable because the existing demo user has zero task records and this revalidation was forbidden from seeding fixtures. Historical five-state and dark-detail evidence remains retained below.
+- Disposable Prisma integration: `WAITING_FOR_HUMAN_DISPOSABLE_DATABASE`; no disposable database variables or approved read-only database were available.
 
 Additional modules included in the frozen baseline:
 
@@ -111,7 +124,8 @@ Domain setup is not performed in this no-deploy documentation task. Before go-li
 
 Current state:
 
-- Multiple local commits have not been pushed.
+- Local `master` was 7 commits ahead of `origin/master` before the evidence documentation commit and will be 8 commits ahead after it.
+- Ordinary push remains prohibited until separately authorized.
 - Force push is forbidden.
 - Tag push, backup push, mirror push, and broad remote updates are forbidden.
 

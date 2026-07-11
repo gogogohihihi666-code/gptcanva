@@ -8,9 +8,9 @@ This report summarizes the current local no-call acceptance status and the relea
 
 ## Current Conclusion
 
-The local no-call MVP has passed acceptance for the currently authorized scope.
+The local no-call MVP has passed the latest authorized local scope after CI gate hardening and browser revalidation. Production readiness has not passed.
 
-Frozen no-call MVP code baseline: `7527333`.
+Frozen no-call MVP code baseline: `c7f6c7a`.
 
 The later documentation-only commit records this code baseline and does not change the code acceptance conclusion.
 
@@ -20,7 +20,7 @@ Current operating posture:
 
 - Local development only.
 - Local commits only.
-- No GitHub push.
+- No GitHub push in this task. Local `master` was 7 commits ahead of `origin/master` before this documentation commit and will be 8 commits ahead after it.
 - No deployment.
 - No real payment calls.
 - No real AI Provider calls.
@@ -65,8 +65,8 @@ Current operating posture:
 
 Latest automated and manual acceptance evidence:
 
-- Latest frozen code baseline: PASS at `7527333`.
-- `npm.cmd run test`: PASS, 76 tests passed.
+- Latest fully verified code baseline: PASS at `c7f6c7a`.
+- `npm.cmd run test`: PASS, 104 tests passed.
 - `npm.cmd run build:service`: PASS.
 - `npm.cmd run build`: PASS.
 - First `npm.cmd run seed:no-call-demo`: PASS, `createdTotal=37`, `updatedTotal=0`, `removedTotal=0`.
@@ -76,6 +76,23 @@ Latest automated and manual acceptance evidence:
 - `5409 /api/system-init/status`: PASS, returned 200 JSON.
 - `5010 /api/system-init/status`: PASS, returned 200 JSON.
 - `5010 /`: PASS, did not redirect to `/install`.
+- `master` push and pull request CI: test and build only, no registry login, image push, SSH, webhook, deployment, or production environment.
+- Docker image publication: manual `workflow_dispatch` only with a full commit SHA and immutable `sha-<commit>` image tag.
+- Production deployment: independent manual `workflow_dispatch` only, full commit SHA image tag, `production` environment, and concurrency control.
+- GitHub production environment approval: `HUMAN_GITHUB_ENVIRONMENT_APPROVAL_CONFIGURATION_REQUIRED`.
+- 1280px anonymous browser acceptance: PASS for `/`, `/login`, `/register`, `/account`, `/install`, and seven protected administrator routes.
+- User route context and administrator route context survive refresh with their original safe redirects.
+- External HTTPS, double-slash, encoded double-slash, and JavaScript redirect probes remained on the localhost origin; automated same-origin redirect tests pass.
+- 390px `/`, `/login`, `/register`, and authenticated `/account`: PASS with `scrollWidth/clientWidth = 390/390`.
+- Mobile login dialog: left/right `17/373`; registration dialog: `16/374`; account logout action right edge: `374`.
+- Two browser-discovered mobile width regressions were repaired in `c7f6c7a` without changing authentication or account business behavior.
+- Ordinary-user administrator boundary: PASS, `/admin/dashboard` resolves to `/admin-forbidden`.
+- Authenticated administrator shell: `HUMAN_LOCAL_ADMIN_AUTH_REQUIRED` because no safe administrator session or credential was available.
+- Current browser session found zero demo generation tasks. Fixture seeding was intentionally skipped, so current five-state task cards and dark detail dialog were not re-created. Their earlier frozen evidence remains valid historical coverage and automated readonly tests still pass.
+- `/generate` no-call guidance: PASS in the authenticated local browser session.
+- Disposable Prisma integration: `WAITING_FOR_HUMAN_DISPOSABLE_DATABASE`; no database connection was attempted.
+- Database-level legacy ciphertext existence: `NOT_VERIFIED`.
+- Production verification-code delivery, backup, restore, rollback, payment sandbox, AI Provider smoke, OSS/S3 smoke, DNS, HTTPS, and deployment remain incomplete.
 - `/admin/orders` populated demo scenario: PASS.
 - `/admin/generations` populated demo scenario: PASS.
 - `/admin/audit-logs` populated demo scenario: PASS, including readonly detail and redacted before / after display.
@@ -157,7 +174,10 @@ Any authorization must name the provider, model, payment provider, storage targe
 ## Pre-Release Risk Backlog
 
 - GitHub HTTPS credential issue is unresolved.
-- Multiple local commits have not been pushed.
+- Local commits remain ahead of `origin/master`; no push is authorized in this task.
+- GitHub `production` environment required reviewers and protection rules still require manual repository configuration.
+- Authenticated administrator brand-shell acceptance requires a safe local administrator session.
+- Disposable Prisma read-only integration requires an independently created loopback disposable database and SELECT-only account.
 - Real payment Provider remains parked.
 - Real AI Provider has not been smoke tested.
 - OSS / S3 has not been tested with a real upload path.
