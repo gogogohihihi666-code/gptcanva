@@ -10,7 +10,7 @@ This report summarizes the current local no-call acceptance status and the relea
 
 The local no-call MVP has passed the latest authorized local scope after CI gate hardening and browser revalidation. Production readiness has not passed.
 
-Frozen no-call MVP code baseline: `c7f6c7a`.
+Frozen no-call MVP code baseline: `c8fa60d`.
 
 The later documentation-only commit records this code baseline and does not change the code acceptance conclusion.
 
@@ -20,7 +20,7 @@ Current operating posture:
 
 - Local development only.
 - Local commits only.
-- No GitHub push in this task. Local `master` was 7 commits ahead of `origin/master` before this documentation commit and will be 8 commits ahead after it.
+- No GitHub push in this task. Local `master` was 9 commits ahead of `origin/master` before this documentation commit and will be 10 commits ahead after it.
 - No deployment.
 - No real payment calls.
 - No real AI Provider calls.
@@ -65,8 +65,8 @@ Current operating posture:
 
 Latest automated and manual acceptance evidence:
 
-- Latest fully verified code baseline: PASS at `c7f6c7a`.
-- `npm.cmd run test`: PASS, 104 tests passed.
+- Latest fully verified code baseline: PASS at `c8fa60d`.
+- `npm.cmd run test`: PASS, 111 tests passed.
 - `npm.cmd run build:service`: PASS.
 - `npm.cmd run build`: PASS.
 - First `npm.cmd run seed:no-call-demo`: PASS, `createdTotal=37`, `updatedTotal=0`, `removedTotal=0`.
@@ -90,7 +90,12 @@ Latest automated and manual acceptance evidence:
 - Authenticated administrator shell: `HUMAN_LOCAL_ADMIN_AUTH_REQUIRED` because no safe administrator session or credential was available.
 - Current browser session found zero demo generation tasks. Fixture seeding was intentionally skipped, so current five-state task cards and dark detail dialog were not re-created. Their earlier frozen evidence remains valid historical coverage and automated readonly tests still pass.
 - `/generate` no-call guidance: PASS in the authenticated local browser session.
-- Disposable Prisma integration: `WAITING_FOR_HUMAN_DISPOSABLE_DATABASE`; no database connection was attempted.
+- Disposable Prisma read-only integration: PASS against `okwook_inventory_disposable_test12345678` with SELECT-only accounts and purely synthetic data.
+- Guard ordering: PASS. Invalid mode, authorization, disposable gate, integration gate, key set, database ID, URL, loopback host, account, or output directory prevents Prisma Client creation.
+- Permission verification: PASS using only database identity and current-user grant reads before target data queries.
+- Query audit: 11 total queries, 11 approved reads, zero writes, and zero unknown statements.
+- Provider dual-table and Storage dual-field classification: PASS with synthetic current, previous, and legacy-only ciphertext.
+- Before/after record counts, encrypted fields, and timestamps: unchanged.
 - Database-level legacy ciphertext existence: `NOT_VERIFIED`.
 - Production verification-code delivery, backup, restore, rollback, payment sandbox, AI Provider smoke, OSS/S3 smoke, DNS, HTTPS, and deployment remain incomplete.
 - `/admin/orders` populated demo scenario: PASS.
@@ -177,7 +182,7 @@ Any authorization must name the provider, model, payment provider, storage targe
 - Local commits remain ahead of `origin/master`; no push is authorized in this task.
 - GitHub `production` environment required reviewers and protection rules still require manual repository configuration.
 - Authenticated administrator brand-shell acceptance requires a safe local administrator session.
-- Disposable Prisma read-only integration requires an independently created loopback disposable database and SELECT-only account.
+- Production read-only legacy ciphertext inventory still requires a separate authorization design. The disposable test cannot establish production data existence.
 - Real payment Provider remains parked.
 - Real AI Provider has not been smoke tested.
 - OSS / S3 has not been tested with a real upload path.

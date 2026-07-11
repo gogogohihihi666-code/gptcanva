@@ -14,10 +14,10 @@ Last frozen baseline update: 2026-07-11.
 
 ## Current Frozen Version
 
-- Current fully verified no-call code baseline: `c7f6c7a`.
+- Current fully verified no-call code baseline: `c8fa60d`.
 - Documentation commits after this point record the baseline only and do not alter its code acceptance conclusion.
 - Current status: local no-call MVP revalidated; production readiness has not passed.
-- GitHub synchronization status: `origin/master` remains at the previously pushed baseline and local `master` was 7 commits ahead before this documentation commit. This task performs no push.
+- GitHub synchronization status: `origin/master` remains at the previously pushed baseline and local `master` was 9 commits ahead before this documentation commit. It will be 10 commits ahead after the documentation commit. This task performs no push.
 - Deployment status: not deployed.
 - Real external calls: not performed.
 - Real payment calls: forbidden.
@@ -26,9 +26,9 @@ Last frozen baseline update: 2026-07-11.
 
 The frozen local state has passed the authorized no-call checks, including backend/admin no-call flows, `/generate` no-call guidance, `/account` demo user acceptance, readonly generation history and result details, local demo fixture seed / clean, user-facing payment parked UI, dev server env bootstrap, OKWook brand integration, and anonymous authentication-route acceptance.
 
-Latest frozen-baseline regression evidence at `c7f6c7a`:
+Latest frozen-baseline regression evidence at `c8fa60d`:
 
-- `npm.cmd run test`: PASS, 104 tests passed.
+- `npm.cmd run test`: PASS, 111 tests passed.
 - `npm.cmd run build:service`: PASS.
 - `npm.cmd run build`: PASS.
 - First `npm.cmd run seed:no-call-demo`: PASS, `createdTotal=37`.
@@ -49,7 +49,13 @@ Latest frozen-baseline regression evidence at `c7f6c7a`:
 - Ordinary-user administrator guard: PASS, `/admin/dashboard` resolved to `/admin-forbidden`.
 - Authenticated administrator shell: `HUMAN_LOCAL_ADMIN_AUTH_REQUIRED`; no administrator credential was available or bypassed.
 - Current fixture-populated task-state browser coverage: unavailable because the existing demo user has zero task records and this revalidation was forbidden from seeding fixtures. Historical five-state and dark-detail evidence remains retained below.
-- Disposable Prisma integration: `WAITING_FOR_HUMAN_DISPOSABLE_DATABASE`; no disposable database variables or approved read-only database were available.
+- Disposable Prisma integration: PASS against the independently created loopback database `okwook_inventory_disposable_test12345678` using SELECT-only accounts and purely synthetic data.
+- Disposable database guard: PASS for exact authorization gates, database ID pattern, loopback host, non-administrator account, isolated output directory, and six distinct synthetic key roles before Prisma Client construction.
+- Disposable permission verification: PASS using only `SELECT DATABASE()` and `SHOW GRANTS FOR CURRENT_USER()` before target-table reads.
+- Disposable query audit: `totalQueryCount=11`, `allowedReadQueryCount=11`, `writeQueryCount=0`, `unknownQueryCount=0`.
+- Provider legacy table, Provider current table, and both Storage ciphertext fields: PASS with expected synthetic classifications.
+- Before/after record counts, ciphertext fields, and `updatedAt`: unchanged.
+- The disposable test does not establish whether production or historical business databases contain legacy ciphertext. Database-level production existence remains `NOT_VERIFIED`.
 
 Additional modules included in the frozen baseline:
 
@@ -124,7 +130,7 @@ Domain setup is not performed in this no-deploy documentation task. Before go-li
 
 Current state:
 
-- Local `master` was 7 commits ahead of `origin/master` before the evidence documentation commit and will be 8 commits ahead after it.
+- Local `master` was 9 commits ahead of `origin/master` before this evidence documentation commit and will be 10 commits ahead after it.
 - Ordinary push remains prohibited until separately authorized.
 - Force push is forbidden.
 - Tag push, backup push, mirror push, and broad remote updates are forbidden.
