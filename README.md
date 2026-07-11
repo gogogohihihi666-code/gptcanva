@@ -1,25 +1,16 @@
 ## ⚠️ 免责声明 (Disclaimer)
 
-本项目（CanvasMind）是一个基于 Vue 3 的**前端交互框架与界面演示原型**，旨在展示无限画布、拖拽交互及 AI 对话界面的技术实现。
+本项目（okwookCanva）是一个基于 Vue 3 的**前端交互框架与界面演示原型**，旨在展示无限画布、拖拽交互及 AI 对话界面的技术实现。
 
 1. **非官方产品**：本项目**并非**任何商业AI平台（包括但不限于即梦AI、字节跳动旗下产品）的官方软件、破解版或衍生品。项目名称、图标及视觉设计均与上述平台无关。
 2. **仅供学习与研究**：本项目代码以 MIT 协议开源，**仅限于技术学习、研究与个人非商业用途**。开发者不鼓励、不支持任何侵犯第三方知识产权的行为。
 3. **版权与风险提示**：本项目的界面布局、交互逻辑可能涉及第三方（如即梦AI）的独创性设计。**任何个人或组织若将本项目用于商业目的，须自行承担因界面相似性引发的全部版权侵权、不正当竞争等法律风险与后果**。项目原作者（xpnobug）不承担任何连带或赔偿责任。
 4. **使用即同意**：一旦您使用、复制、修改或分发本项目代码，即表示您已阅读并同意本免责声明的所有条款。若您不同意，请立即停止使用并删除本项目。
 
-# CanvasMind
-
-## Brand And Domain
-
-- Primary domain: `www.okwook.com`
-- DNS nameservers: `a.share-dns.com`, `b.share-dns.net`
-- English slogan: "Confront It OK. Astonish It Wo. Command It OK."
-- Chinese slogan: "直面挑战，震撼全场，掌控一切。"
-- Release note: these values are documentation records only. DNS, HTTPS, reverse proxy, production environment variables, payment webhooks, email domain, and CORS must still be verified in a separately authorized release task.
 
 > 一站式 AI 创作与后台运营平台
 
-`CanvasMind` 一个包含 **Vue 3 前台创作端 + Node/Prisma 后台服务 + 管理后台** 的完整项目骨架。
+`okwookCanva` 一个包含 **Vue 3 前台创作端 + Node/Prisma 后台服务 + 管理后台** 的完整项目骨架。
 
 当前项目重点覆盖：
 
@@ -497,14 +488,6 @@ canana-vue/
 - `ioredis`（可选，用于限流、锁、Pub/Sub、缓存）
 - `@aws-sdk/client-s3`（S3 兼容对象存储）
 - `tsx`（开发态热更新）+ `esbuild`（生产打包）
-## 💬 交流群
-微信: 加群洽谈，过期请备注 进群
-
-欢迎加入微信群交流 AI 产品体验：
-<p align="center">
-  <img src="./微信图片.jpg" width="300" alt="AI 产品体验交流群" />
-  <img src="./wechat.jpg" width="300" alt="AI 产品体验交流群" />
-</p>
 
 ## 📄 License
 
@@ -522,4 +505,4 @@ MIT
 - [Dreamina](https://www.capcut.com/ai-tool/platform) - 剪映AI创作工具
 ---
 
-**CanvasMind** - 让 AI 创作更简单 🎨✨
+**okwookCanva** - 让 AI 创作更简单 🎨✨
