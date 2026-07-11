@@ -78,6 +78,11 @@ watch(() => [route.path, route.query.login, route.query.mode, route.query.redire
     return
   }
 
+  if (route.path === '/register') {
+    openLoginModal('register-route', { mode: 'user' })
+    return
+  }
+
   if (route.query.login === '1') {
     openLoginModal('route-guard', { mode: 'user' })
     void router.replace({

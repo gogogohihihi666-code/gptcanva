@@ -642,3 +642,10 @@ body[lv-theme='light'] .login-subtitle-canana {
   margin-top: 4px;
   overflow-wrap: anywhere;
 }
+.login-registration-hint {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}

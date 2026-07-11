@@ -51,6 +51,11 @@ const routes: RouteRecordRaw[] = [
     component: Home,
   },
   {
+    path: '/register',
+    name: 'Register',
+    component: Home,
+  },
+  {
     path: '/generate',
     name: 'Generate',
     component: Generate,

@@ -31,6 +31,7 @@
                     <div v-if="welcomeTitle !== BRAND_NAME" class="login-welcome-title">{{ welcomeTitle }}</div>
                   </div>
                   <div v-if="welcomeSubtitle" class="login-subtitle-canana">{{ welcomeSubtitle }}</div>
+                  <p v-if="showRegistrationHint" class="login-registration-hint">首次使用验证码登录将自动创建账号</p>
                 </span>
               </div>
             </div>
@@ -246,6 +247,7 @@ const systemSettingsStore = useSystemSettingsStore()
 
 // 管理员密码入口只在受保护的后台路由触发登录时提供，避免普通用户登录被管理员表单误导。
 const isAdminLoginContext = computed(() => props.source === 'admin-route-guard')
+const isRegistrationEntry = computed(() => props.source === 'register-route')
 const isAdminPasswordMethod = (method: PublicAuthMethod) => method.category === 'PASSWORD' && method.iconType === 'admin'
 
 // 所有可直接交互的登录方式（密码 + 验证码）。
@@ -258,6 +260,8 @@ const interactiveMethods = computed(() => authStore.enabledMethods.value.filter(
 
 // 所有 OAuth 类登录方式。
 const oauthMethods = computed(() => authStore.enabledMethods.value.filter(item => item.category === 'OAUTH'))
+const showRegistrationHint = computed(() => isRegistrationEntry.value
+  && interactiveMethods.value.some(method => method.category === 'CODE' && method.allowSignUp))
 const publicSettings = computed(() => systemSettingsStore.publicSystemSettings.value)
 const policySettings = computed(() => publicSettings.value.policySettings)
 const agreementTextPrefix = computed(() => policySettings.value.agreementTextPrefix || '已阅读并同意')
