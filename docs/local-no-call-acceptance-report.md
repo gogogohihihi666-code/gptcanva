@@ -1,8 +1,8 @@
 # Local No-Call Acceptance Report
 
-Date: 2026-07-08
+Date: 2026-07-11
 
-Latest frozen baseline update: 2026-07-10.
+Latest frozen baseline update: 2026-07-11.
 
 This report summarizes the current local no-call acceptance status and the release backlog that must be resolved before any real provider, payment, storage, push, or deployment work.
 
@@ -10,7 +10,7 @@ This report summarizes the current local no-call acceptance status and the relea
 
 The local no-call MVP has passed acceptance for the currently authorized scope.
 
-Frozen no-call MVP baseline: `e93638a`.
+Frozen no-call MVP baseline: `b77ee69`.
 
 This does not mean that real AI Provider integration, real payment integration, real OSS / S3 upload, or production deployment is complete. All real external calls remain forbidden by default, and GitHub push remains parked until separately authorized.
 
@@ -49,19 +49,24 @@ Current operating posture:
 - `dev:server` local env bootstrap loads `.env.development`.
 - `dev:server` loads `DATABASE_URL` before the Prisma phase without printing the value.
 - Production mode refuses the dev env bootstrap path.
+- `/account` readonly generation history and safe result-detail display.
+- Local fixture coverage for `PENDING`, `RUNNING`, `COMPLETED`, `FAILED`, and `STOPPED` generation states.
+- Fixture reuse of an existing local ordinary user, with explicit refusal to bind fixture data to an administrator.
+- `/account` mobile content width chain verified at 390px without using clipping as the layout fix.
+- Dark-theme generation detail dialog contrast verified.
 
 ## Acceptance Summary
 
 Latest automated and manual acceptance evidence:
 
-- Latest frozen-baseline regression: PASS at `e93638a`.
-- `npm.cmd run test`: PASS, 66 tests passed.
+- Latest frozen-baseline regression: PASS at `b77ee69`.
+- `npm.cmd run test`: PASS, 70 tests passed.
 - `npm.cmd run build:service`: PASS.
 - `npm.cmd run build`: PASS.
-- `npm.cmd run seed:no-call-demo`: PASS.
-- Demo seed output: `createdTotal=37`, `updatedTotal=0`, `removedTotal=0`.
+- First `npm.cmd run seed:no-call-demo`: PASS, `createdTotal=37`, `updatedTotal=0`, `removedTotal=0`.
+- Second `npm.cmd run seed:no-call-demo`: PASS, `createdTotal=0`, `updatedTotal=37`, `removedTotal=0`.
 - `npm.cmd run seed:no-call-demo:clean`: PASS.
-- Demo clean output: `removedTotal=37`.
+- Demo clean output: `removedTotal=37`, `preservedNonDemoRecords=true`.
 - `5409 /api/system-init/status`: PASS, returned 200 JSON.
 - `5010 /api/system-init/status`: PASS, returned 200 JSON.
 - `5010 /`: PASS, did not redirect to `/install`.
@@ -85,10 +90,13 @@ Latest automated and manual acceptance evidence:
   - Points balance: displayed `1255`.
   - Recent point logs: displayed 5 demo entries.
   - Membership state: displayed `Demo Local Member`.
-  - Generation tasks: displayed 5 demo tasks, including `COMPLETED`, `FAILED`, `STOPPED`, and `RUNNING`.
+  - Generation tasks: displayed 6 demo tasks, covering `PENDING`, `RUNNING`, `COMPLETED`, `FAILED`, and `STOPPED`.
   - Works / result entry: visible, with the works area showing a reasonable empty placeholder.
   - Readonly page behavior: PASS.
-  - Mobile layout: PASS at 390px, with `scrollWidth/clientWidth = 390/390`.
+  - Generation history and readonly task details: PASS, including safe failure, point, refund, and compensation summaries.
+  - Dark detail dialog contrast: PASS.
+  - Mobile layout: PASS at 390px. Global shell is 390px; account main content, task area, task list, and task card are 314px; task action is 284px; status label is 49px with `visibleWidth=49px`; `scrollWidth/clientWidth = 390/390`; no actual clipping is used as the fix.
+  - Desktop layout: PASS at 1280px.
 
 The demo fixture output confirmed:
 
@@ -97,6 +105,7 @@ The demo fixture output confirmed:
 - `willUploadStorage=false`
 - `affectedRealAdminUser=false`
 - `preservedNonDemoRecords=true`
+- The reused local ordinary user remains present after clean; the administrator-binding guard remains enabled.
 
 ## Current Prohibitions
 

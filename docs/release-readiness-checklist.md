@@ -1,16 +1,16 @@
 # Release Readiness Checklist
 
-Date: 2026-07-08
+Date: 2026-07-11
 
 This checklist defines the work that must be completed before moving the current local no-call MVP toward any remote push, real provider smoke, real payment validation, storage smoke, or production deployment.
 
 Last domain and brand update: 2026-07-09.
 
-Last frozen baseline update: 2026-07-10.
+Last frozen baseline update: 2026-07-11.
 
 ## Current Frozen Version
 
-- Current HEAD: `e93638a`.
+- Current HEAD: `b77ee69`.
 - Current status: local no-call MVP frozen.
 - GitHub push status: not pushed.
 - Deployment status: not deployed.
@@ -19,15 +19,16 @@ Last frozen baseline update: 2026-07-10.
 - Real AI Provider calls: forbidden.
 - Real OSS / S3 upload, read, delete, and signed URL tests: forbidden.
 
-The frozen local state has passed the authorized no-call checks, including backend/admin no-call flows, `/generate` no-call guidance, `/account` demo user acceptance, local demo fixture seed / clean, user-facing payment parked UI, and dev server env bootstrap.
+The frozen local state has passed the authorized no-call checks, including backend/admin no-call flows, `/generate` no-call guidance, `/account` demo user acceptance, readonly generation history and result details, local demo fixture seed / clean, user-facing payment parked UI, and dev server env bootstrap.
 
-Latest frozen-baseline regression evidence at `e93638a`:
+Latest frozen-baseline regression evidence at `b77ee69`:
 
-- `npm.cmd run test`: PASS, 66 tests passed.
+- `npm.cmd run test`: PASS, 70 tests passed.
 - `npm.cmd run build:service`: PASS.
 - `npm.cmd run build`: PASS.
-- `npm.cmd run seed:no-call-demo`: PASS, `createdTotal=37`.
-- `npm.cmd run seed:no-call-demo:clean`: PASS, `removedTotal=37`.
+- First `npm.cmd run seed:no-call-demo`: PASS, `createdTotal=37`.
+- Second `npm.cmd run seed:no-call-demo`: PASS, `createdTotal=0`, `updatedTotal=37`.
+- `npm.cmd run seed:no-call-demo:clean`: PASS, `removedTotal=37`, `preservedNonDemoRecords=true`.
 - `5409 /api/system-init/status`: PASS, returned 200 JSON.
 - `5010 /api/system-init/status`: PASS, returned 200 JSON.
 - `5010 /`: PASS, did not redirect to `/install`.
@@ -42,6 +43,11 @@ Additional modules included in the frozen baseline:
 - `dev:server` loads `.env.development` for local development.
 - `DATABASE_URL` is loaded before the Prisma phase without printing the value.
 - Production mode refuses the dev env bootstrap path.
+- `/account` readonly generation history, result placeholders, and task details are accepted without result URL loading or task mutation.
+- Fixture coverage includes `PENDING`, `RUNNING`, `COMPLETED`, `FAILED`, and `STOPPED` generation states.
+- Fixture reuses an existing local ordinary user, preserves that user during clean, and explicitly refuses an administrator email collision.
+- Account task content-width chain is accepted at 390px: 390px global shell, 314px task content/card, 284px action, fully visible 49px status label, and `scrollWidth/clientWidth = 390/390` without relying on clipping to hide an oversized layout.
+- Dark-theme generation detail dialog contrast is accepted; the 1280px desktop layout remains accepted.
 
 ## Brand And Domain Record
 
