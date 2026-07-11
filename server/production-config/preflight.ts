@@ -1,4 +1,5 @@
 type RuntimeEnv = Record<string, string | undefined>
+import { validateProductionEncryptionSecrets } from '../config-encryption/secrets'
 
 const LOCAL_DEVELOPMENT_ORIGINS = [
   'http://localhost:5010',
@@ -113,6 +114,12 @@ export const getProductionConfigErrors = (env: RuntimeEnv = process.env) => {
     if (isEnabled(env[gateName])) {
       errors.push(`${gateName} must be disabled in production.`)
     }
+  }
+
+  try {
+    validateProductionEncryptionSecrets(env)
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : 'Configuration encryption secrets are invalid.')
   }
 
   if (!String(env.AUTH_VERIFICATION_DELIVERY_PROVIDER || '').trim()) {

@@ -160,6 +160,17 @@ Production preflight must fail before binding a port when any of these condition
 
 `allowAutoFill` and debug verification-code responses are forcibly disabled in production. This task neither configures nor calls a real SMS or email delivery provider.
 
+## Configuration Encryption Secret Controls
+
+Provider and Object Storage configuration use separate current encryption keys. Production startup preflight rejects missing, weak, placeholder, known legacy fallback, or duplicate key material before the application binds a port.
+
+- `PROVIDER_CONFIG_SECRET` and `STORAGE_CONFIG_SECRET` must be independently generated strong values in the approved secret system.
+- `PROVIDER_CONFIG_SECRET_PREVIOUS` and `STORAGE_CONFIG_SECRET_PREVIOUS` are optional decrypt-only rotation values.
+- A previous key may be present only during an authorized rotation window. It must differ from every active key in both scopes.
+- New ciphertext always uses the current key while existing ciphertext may be read with the previous key during the rotation window.
+- The current ciphertext format has no embedded key version. Do not delete a previous key until a separately authorized read verification and migration plan has completed.
+- Legacy fallback ciphertext requires a dedicated compatibility and re-encryption task. This task does not connect to a production database, modify stored ciphertext, or run bulk re-encryption.
+
 ## Database Migration Checklist
 
 Before production migration:
