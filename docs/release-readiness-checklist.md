@@ -139,6 +139,27 @@ Before deployment:
 - Confirm administrator bootstrap or system-init behavior cannot overwrite an existing production administrator.
 - Confirm logs redact tokens, cookies, passwords, API keys, certificates, webhook secrets, signed URLs, bucket-sensitive values, endpoint-sensitive values, base64 payloads, and raw provider responses.
 
+## Production Startup and Migration Controls
+
+The production application startup command runs configuration preflight and then starts the service. It does not run Prisma migration, database push, seed, or demo fixture commands automatically.
+
+Before a separately authorized production migration:
+
+1. Complete and verify the database backup.
+2. Set `NODE_ENV=production` in the approved secret or environment system.
+3. Temporarily set `OKWOOK_ALLOW_PRODUCTION_MIGRATION=1` and `OKWOOK_PRODUCTION_BACKUP_VERIFIED=1` only in the authorized migration process.
+4. Run `npm.cmd run db:migrate:production` and record only the command outcome, never database connection details.
+5. Verify the migration outcome, then reset both migration authorization variables to `0` or remove them.
+6. Run production startup preflight, start the application, and perform only authorized health checks.
+
+Production preflight must fail before binding a port when any of these conditions is unmet:
+
+- `DATABASE_URL`, `SERVER_PORT`, or a strict HTTPS `CORS_ALLOWED_ORIGINS` allowlist is missing or invalid.
+- A local, demo, payment simulation, real Provider, real storage, or debug-header gate is enabled.
+- Verification-code login has no real, separately authorized delivery adapter. The current no-call baseline intentionally has no such adapter, so production verification-code login remains unavailable.
+
+`allowAutoFill` and debug verification-code responses are forcibly disabled in production. This task neither configures nor calls a real SMS or email delivery provider.
+
 ## Database Migration Checklist
 
 Before production migration:

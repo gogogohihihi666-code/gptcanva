@@ -54,6 +54,7 @@ import { isSkillConfigPath } from './skill-config/constants'
 import { handleSkillConfigRequest } from './skill-config/request-handler'
 import { REDIS_CONFIG, isRedisEnabled } from './redis'
 import { writeScopedLog } from './shared/logging'
+import { assertProductionConfig, resolveCorsAllowedOrigins } from './production-config/preflight'
 
 // 后端服务默认监听端口。
 const DEFAULT_SERVER_PORT = 5409
@@ -65,13 +66,6 @@ const DEFAULT_STATIC_DIST_DIR = path.resolve(process.cwd(), 'dist')
 const UPLOADS_PUBLIC_PATH_PREFIX = '/uploads/'
 
 // 允许跨域访问的来源列表。
-const DEFAULT_CORS_ALLOWED_ORIGINS = [
-  'http://localhost:5010',
-  'http://127.0.0.1:5010',
-  'http://localhost:4173',
-  'http://127.0.0.1:4173',
-]
-
 // 读取服务端口配置。
 const readServerPort = () => {
   // 读取环境变量中的端口配置。
@@ -92,14 +86,7 @@ const readStaticDistDir = () => {
 
 // 读取允许跨域的来源配置。
 const readAllowedOrigins = () => {
-  // 读取逗号分隔的来源字符串。
-  const rawOrigins = String(process.env.CORS_ALLOWED_ORIGINS || '')
-    .split(',')
-    .map(item => item.trim())
-    .filter(Boolean)
-
-  // 优先使用环境变量，否则使用本地开发默认值。
-  return rawOrigins.length ? rawOrigins : DEFAULT_CORS_ALLOWED_ORIGINS
+  return resolveCorsAllowedOrigins(process.env)
 }
 
 // 读取前端运行时公开配置。
@@ -611,6 +598,11 @@ const dispatchRequest = async (req: any, res: any) => {
       message: '接口不存在',
     },
   })
+}
+
+// Production validation must complete before the process binds a network port.
+if (process.env.NODE_ENV === 'production') {
+  assertProductionConfig(process.env)
 }
 
 // 创建独立 Node 后端服务。

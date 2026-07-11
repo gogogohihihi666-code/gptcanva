@@ -8,6 +8,8 @@ import { getOrSetJsonCache } from '../redis/json-cache'
 import { redisKeys } from '../redis/keys'
 import type { AuthMethodConfigPayload, AuthUserProfile, PublicAuthMethod } from './types'
 
+const isProductionRuntime = () => process.env.NODE_ENV === 'production'
+
 // 验证码默认有效期，单位分钟。
 const DEFAULT_LOGIN_CODE_EXPIRE_MINUTES = 5
 
@@ -220,7 +222,7 @@ const toPublicAuthMethod = (item: {
     isEnabled: item.isEnabled,
     isVisible: item.isVisible,
     sortOrder: item.sortOrder,
-    allowAutoFill: item.allowAutoFill,
+    allowAutoFill: isProductionRuntime() ? false : item.allowAutoFill,
     allowSignUp: item.allowSignUp,
     config: item.configJson && typeof item.configJson === 'object' ? item.configJson as Record<string, any> : {},
   }

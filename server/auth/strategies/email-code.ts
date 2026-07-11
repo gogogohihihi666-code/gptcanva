@@ -1,6 +1,7 @@
 import type { AuthStrategy } from '../types'
 import { grantLoginReward } from '../../marketing-center/service'
 import { attachVerificationCodeUser, consumeVerificationCodeRecord, createUserSession, createVerificationCodeRecord, getAuthMethodConfig, isValidEmail, resolveUserByIdentifier, toAuthUserProfile } from '../service'
+import { assertVerificationDeliveryAvailable, getVerificationDeliveryReadiness } from '../verification-delivery'
 
 // 邮箱验证码登录策略。
 export const emailCodeStrategy: AuthStrategy = {
@@ -14,6 +15,7 @@ export const emailCodeStrategy: AuthStrategy = {
       throw new Error('请输入正确的邮箱地址')
     }
 
+    assertVerificationDeliveryAvailable(process.env)
     const record = await createVerificationCodeRecord({
       methodType: 'EMAIL_CODE',
       channel: 'EMAIL',
@@ -28,7 +30,9 @@ export const emailCodeStrategy: AuthStrategy = {
       target: email,
       channel: 'EMAIL',
       expiresAt: record.expiresAt,
-      debugCode: context.methodConfig.allowAutoFill ? record.code : undefined,
+      debugCode: getVerificationDeliveryReadiness(process.env, context.methodConfig.allowAutoFill).willReturnDebugCode
+        ? record.code
+        : undefined,
     }
   },
   async login(context) {

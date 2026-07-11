@@ -1,6 +1,7 @@
 import type { AuthStrategy } from '../types'
 import { grantLoginReward } from '../../marketing-center/service'
 import { attachVerificationCodeUser, consumeVerificationCodeRecord, createUserSession, createVerificationCodeRecord, getAuthMethodConfig, isValidPhone, resolveUserByIdentifier, toAuthUserProfile } from '../service'
+import { assertVerificationDeliveryAvailable, getVerificationDeliveryReadiness } from '../verification-delivery'
 
 // 手机验证码登录策略。
 export const phoneCodeStrategy: AuthStrategy = {
@@ -14,6 +15,7 @@ export const phoneCodeStrategy: AuthStrategy = {
       throw new Error('请输入正确的手机号')
     }
 
+    assertVerificationDeliveryAvailable(process.env)
     const record = await createVerificationCodeRecord({
       methodType: 'PHONE_CODE',
       channel: 'PHONE',
@@ -28,7 +30,9 @@ export const phoneCodeStrategy: AuthStrategy = {
       target: phone,
       channel: 'PHONE',
       expiresAt: record.expiresAt,
-      debugCode: context.methodConfig.allowAutoFill ? record.code : undefined,
+      debugCode: getVerificationDeliveryReadiness(process.env, context.methodConfig.allowAutoFill).willReturnDebugCode
+        ? record.code
+        : undefined,
     }
   },
   async login(context) {
