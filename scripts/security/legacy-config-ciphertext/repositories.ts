@@ -1,10 +1,14 @@
 export interface ProviderConfigInventoryRecord {
+  id?: string
   apiKeyEncrypted: string | null
+  updatedAt?: Date
 }
 
 export interface StorageConfigInventoryRecord {
+  id?: string
   accessKeyEncrypted: string | null
   secretKeyEncrypted: string | null
+  updatedAt?: Date
 }
 
 export interface LegacyConfigInventoryRepository {
