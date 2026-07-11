@@ -1732,6 +1732,21 @@ body,html {
             width: 100vw
         }
 
+        @media (max-width: 480px) {
+            .global-dreamina-container {
+                min-width: 0;
+                width: 100%
+            }
+
+            .container-moSF_y,
+            .container-moSF_y .content-wrapper-cF1zaN,
+            .container-moSF_y .main-container-nXfW_A,
+            .container-moSF_y .main-container-nXfW_A .content-TZbgMr {
+                max-width: 100%;
+                min-width: 0
+            }
+        }
+
         .container-aVP6Vy {
             align-items: center;
             display: flex;

@@ -60,6 +60,8 @@ describe('user generation history readonly no-call', () => {
     const handler = readText('server/account-generation-history/request-handler.ts')
     const service = readText('server/account-generation-history/service.ts')
     const css = readText('src/views/account/account-center.css')
+    const globalCss = readText('src/styles/styles.css')
+    const generateCss = readText('src/views/generate/generate.css')
 
     assert.match(page, /listAccountGenerationHistory/)
     assert.match(page, /generation-history-detail/)
@@ -89,5 +91,9 @@ describe('user generation history readonly no-call', () => {
     assert.match(css, /@media \(max-width: 480px\)[\s\S]*\.account-task-overview[\s\S]*min-width:\s*0[\s\S]*width:\s*100%/)
     assert.match(css, /\.generation-history-detail\s*\{[\s\S]*--el-dialog-bg-color:\s*#[0-9a-f]{6}/i)
     assert.match(css, /\.generation-history-detail[\s\S]*\.el-dialog__title[\s\S]*color:\s*#[0-9a-f]{6}/i)
+    assert.match(globalCss, /@media \(max-width: 480px\)[\s\S]*\.global-dreamina-container[\s\S]*min-width:\s*0/)
+    assert.match(generateCss, /@media \(max-width: 480px\)[\s\S]*\.global-dreamina-container[\s\S]*min-width:\s*0/)
+    assert.match(css, /@media \(max-width: 480px\)[\s\S]*\.content-wrapper-OzVFU5[\s\S]*min-width:\s*0/)
+    assert.match(css, /@media \(max-width: 480px\)[\s\S]*\.content-V2NaRy[\s\S]*min-width:\s*0/)
   })
 })

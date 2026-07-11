@@ -281,6 +281,13 @@
     width: 100vw
 }
 
+@media (max-width: 480px) {
+    .global-dreamina-container {
+        min-width: 0;
+        width: 100%
+    }
+}
+
 .container-bG3PQ9 {
     position: relative
 }

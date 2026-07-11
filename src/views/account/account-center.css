@@ -1256,6 +1256,16 @@
 }
 
 @media (max-width: 480px) {
+  .content-wrapper-OzVFU5,
+  .main-container-TrGK7G,
+  .content-V2NaRy,
+  .container-xPaqsy {
+    box-sizing: border-box;
+    flex: 1 1 0;
+    max-width: 100%;
+    min-width: 0;
+  }
+
   .container-xPaqsy > .scroll-container-AhepyD,
   .container-xPaqsy > .scroll-container-AhepyD > div,
   .container-xPaqsy .right-container-VcENyg,
