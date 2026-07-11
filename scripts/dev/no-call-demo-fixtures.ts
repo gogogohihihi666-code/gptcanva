@@ -7,6 +7,8 @@ export const DEMO_USER_EMAIL = 'demo-user@example.local'
 
 type FixtureEnv = Record<string, string | undefined>
 type FixtureMode = 'seed' | 'clean'
+type FixtureUserReference = { id: string; email: string }
+type ExistingFixtureUser = { id: string; role: 'USER' | 'ADMIN' }
 
 type DemoFixtureExternalHooks = {
   callProvider?: () => unknown
@@ -76,6 +78,27 @@ export const assertCanRunNoCallDemoFixtures = (env: FixtureEnv = process.env) =>
 
   if (String(env[DEMO_FIXTURE_GATE_ENV] || '').trim() !== '1') {
     throw new Error(`No-call demo fixtures requires ${DEMO_FIXTURE_GATE_ENV}=1.`)
+  }
+}
+
+export const resolveNoCallDemoFixtureUserBinding = (
+  fixtureUser: FixtureUserReference,
+  existingUser: ExistingFixtureUser | null,
+) => {
+  if (existingUser?.role === 'ADMIN') {
+    throw new Error('No-call demo fixtures refuses to bind demo data to an administrator account.')
+  }
+
+  if (!existingUser || existingUser.id === fixtureUser.id) {
+    return {
+      userId: fixtureUser.id,
+      shouldUpsertFixtureUser: true,
+    }
+  }
+
+  return {
+    userId: existingUser.id,
+    shouldUpsertFixtureUser: false,
   }
 }
 
@@ -726,12 +749,21 @@ const createPrismaDemoFixtureStore = async (): Promise<DemoFixtureStore & { disc
     async seedDataset(dataset) {
       const counts = { createdTotal: 0, updatedTotal: 0 }
       await prisma.$transaction(async (tx: any) => {
-        track(counts, await upsertWithId(tx.appUser, dataset.user.id, {
-          ...dataset.user,
-          avatarUrl: null,
-          phone: null,
-          passwordHash: null,
-        }))
+        const existingUser = await tx.appUser.findUnique({
+          where: { email: dataset.user.email },
+          select: { id: true, role: true },
+        })
+        const userBinding = resolveNoCallDemoFixtureUserBinding(dataset.user, existingUser)
+        const fixtureUserId = userBinding.userId
+
+        if (userBinding.shouldUpsertFixtureUser) {
+          track(counts, await upsertWithId(tx.appUser, dataset.user.id, {
+            ...dataset.user,
+            avatarUrl: null,
+            phone: null,
+            passwordHash: null,
+          }))
+        }
         track(counts, await upsertWithId(tx.membershipLevel, dataset.membershipLevel.id, {
           ...dataset.membershipLevel,
           iconUrl: null,
@@ -752,14 +784,14 @@ const createPrismaDemoFixtureStore = async (): Promise<DemoFixtureStore & { disc
         }))
         track(counts, await upsertWithId(tx.generationSession, dataset.generationSession.id, {
           ...dataset.generationSession,
-          userId: dataset.user.id,
+          userId: fixtureUserId,
           sortOrder: 99001,
         }))
 
         for (const item of dataset.membershipOrders) {
           track(counts, await upsertWithId(tx.membershipOrder, item.id, {
             ...item,
-            userId: dataset.user.id,
+            userId: fixtureUserId,
             levelId: dataset.membershipLevel.id,
             planId: dataset.membershipPlan.id,
             sourceType: 'DIRECT_PURCHASE',
@@ -773,7 +805,7 @@ const createPrismaDemoFixtureStore = async (): Promise<DemoFixtureStore & { disc
         for (const item of dataset.rechargeOrders) {
           track(counts, await upsertWithId(tx.rechargeOrder, item.id, {
             ...item,
-            userId: dataset.user.id,
+            userId: fixtureUserId,
             rechargePackageId: dataset.rechargePackage.id,
             payChannel: 'MANUAL',
             packageSnapshotJson: demoMeta('recharge-package-snapshot', {
@@ -787,7 +819,7 @@ const createPrismaDemoFixtureStore = async (): Promise<DemoFixtureStore & { disc
 
         track(counts, await upsertWithId(tx.userSubscription, dataset.userSubscription.id, {
           ...dataset.userSubscription,
-          userId: dataset.user.id,
+          userId: fixtureUserId,
           levelId: dataset.membershipLevel.id,
           orderId: dataset.membershipOrders[1].id,
         }))
@@ -795,7 +827,7 @@ const createPrismaDemoFixtureStore = async (): Promise<DemoFixtureStore & { disc
         for (const item of dataset.paymentTransactions) {
           track(counts, await upsertWithId(tx.paymentTransaction, item.id, {
             ...item,
-            userId: dataset.user.id,
+            userId: fixtureUserId,
             currency: 'CNY',
             rawPayloadJson: null,
           }))
@@ -805,7 +837,7 @@ const createPrismaDemoFixtureStore = async (): Promise<DemoFixtureStore & { disc
           const payment = dataset.paymentTransactions.find(txn => txn.orderType === item.orderType && txn.orderNo === item.orderNo)
           track(counts, await upsertWithId(tx.benefitGrant, item.id, {
             ...item,
-            userId: dataset.user.id,
+            userId: fixtureUserId,
             benefitId: item.orderNo,
             paymentTransactionId: payment?.id || null,
             revokedAt: null,
@@ -815,7 +847,7 @@ const createPrismaDemoFixtureStore = async (): Promise<DemoFixtureStore & { disc
         for (const item of dataset.generationRecords) {
           track(counts, await upsertWithId(tx.generationRecord, item.id, {
             ...item,
-            userId: dataset.user.id,
+            userId: fixtureUserId,
             sessionId: dataset.generationSession.id,
             providerConfigId: null,
             clientRecordId: null,
@@ -837,7 +869,7 @@ const createPrismaDemoFixtureStore = async (): Promise<DemoFixtureStore & { disc
         for (const item of dataset.assets) {
           track(counts, await upsertWithId(tx.assetItem, item.id, {
             ...item,
-            userId: dataset.user.id,
+            userId: fixtureUserId,
             durationSeconds: null,
             fileSizeBytes: 0n,
             visibility: 'PRIVATE',
@@ -855,7 +887,7 @@ const createPrismaDemoFixtureStore = async (): Promise<DemoFixtureStore & { disc
         for (const item of dataset.pointLogs) {
           track(counts, await upsertWithId(tx.pointAccountLog, item.id, {
             ...item,
-            userId: dataset.user.id,
+            userId: fixtureUserId,
             subscriptionId: item.sourceType === 'ADMIN_ADJUST' ? null : dataset.userSubscription.id,
             rechargeOrderId: null,
             expireAt: null,
@@ -865,7 +897,7 @@ const createPrismaDemoFixtureStore = async (): Promise<DemoFixtureStore & { disc
         for (const item of dataset.auditLogs) {
           track(counts, await upsertWithId(tx.adminAuditLog, item.id, {
             ...item,
-            operatorUserId: dataset.user.id,
+            operatorUserId: fixtureUserId,
             ipAddress: '127.0.0.1',
             userAgent: 'local-no-call-demo-fixture',
           }))

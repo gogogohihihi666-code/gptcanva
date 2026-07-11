@@ -7,6 +7,7 @@ import {
   assertCanRunNoCallDemoFixtures,
   buildNoCallDemoFixtureDataset,
   cleanNoCallDemoFixtures,
+  resolveNoCallDemoFixtureUserBinding,
   seedNoCallDemoFixtures,
 } from '../../scripts/dev/no-call-demo-fixtures'
 
@@ -16,6 +17,26 @@ const allowedEnv = {
 }
 
 describe('local no-call demo fixtures', () => {
+  it('reuses an existing local demo-email user without binding fixture data to an administrator', () => {
+    const dataset = buildNoCallDemoFixtureDataset(new Date('2026-07-07T08:00:00.000Z'))
+    assert.deepEqual(resolveNoCallDemoFixtureUserBinding(dataset.user, null), {
+      userId: dataset.user.id,
+      shouldUpsertFixtureUser: true,
+    })
+    assert.deepEqual(resolveNoCallDemoFixtureUserBinding(dataset.user, { id: 'local-email-user', role: 'USER' }), {
+      userId: 'local-email-user',
+      shouldUpsertFixtureUser: false,
+    })
+    assert.throws(
+      () => resolveNoCallDemoFixtureUserBinding(dataset.user, { id: 'admin-user', role: 'ADMIN' }),
+      /administrator/i,
+    )
+    assert.throws(
+      () => resolveNoCallDemoFixtureUserBinding(dataset.user, { id: dataset.user.id, role: 'ADMIN' }),
+      /administrator/i,
+    )
+  })
+
   it('rejects production and closed-gate runs before any data write', () => {
     assert.throws(
       () => assertCanRunNoCallDemoFixtures({
