@@ -197,6 +197,7 @@ import { useAsyncAction } from '@/composables'
 
 const props = defineProps<{
   visible: boolean
+  source?: string
 }>()
 
 const emit = defineEmits<{
@@ -242,8 +243,14 @@ let countdownTimer: number | null = null
 const authStore = useAuthStore()
 const systemSettingsStore = useSystemSettingsStore()
 
+// 管理员密码入口只在受保护的后台路由触发登录时提供，避免普通用户登录被管理员表单误导。
+const isAdminLoginContext = computed(() => props.source === 'admin-route-guard')
+
 // 所有可直接交互的登录方式（密码 + 验证码）。
-const interactiveMethods = computed(() => authStore.enabledMethods.value.filter(item => item.category !== 'OAUTH'))
+const interactiveMethods = computed(() => authStore.enabledMethods.value.filter(item => {
+  if (item.category === 'OAUTH') return false
+  return isAdminLoginContext.value || item.methodType !== 'ADMIN_PASSWORD'
+}))
 
 // 所有 OAuth 类登录方式。
 const oauthMethods = computed(() => authStore.enabledMethods.value.filter(item => item.category === 'OAUTH'))
@@ -257,8 +264,12 @@ const privacyPolicyHref = computed(() => policySettings.value.privacyPolicyUrl |
 const aiNoticeHref = computed(() => policySettings.value.aiNoticeUrl || '/policies/ai-notice')
 
 // 当前选中的主登录方式。
+const defaultInteractiveMethod = computed(() => {
+  return interactiveMethods.value.find(item => item.category === 'CODE') || interactiveMethods.value[0] || null
+})
+
 const currentPrimaryMethod = computed(() => {
-  return interactiveMethods.value.find(item => item.methodType === activeMethodType.value) || interactiveMethods.value[0] || null
+  return interactiveMethods.value.find(item => item.methodType === activeMethodType.value) || defaultInteractiveMethod.value
 })
 
 // 当前选中的验证码登录方式。
@@ -412,14 +423,14 @@ const selectMethod = (methodType: AuthMethodType) => {
 }
 
 // 根据后端返回的可用方式同步当前激活项。
-const syncActiveMethod = () => {
-  if (currentPrimaryMethod.value) {
-    activeMethodType.value = currentPrimaryMethod.value.methodType
+const syncActiveMethod = (preferDefault = false) => {
+  const activeMethod = interactiveMethods.value.find(item => item.methodType === activeMethodType.value)
+  if (!preferDefault && activeMethod) {
     return
   }
 
-  if (interactiveMethods.value[0]) {
-    activeMethodType.value = interactiveMethods.value[0].methodType
+  if (defaultInteractiveMethod.value) {
+    activeMethodType.value = defaultInteractiveMethod.value.methodType
   }
 }
 
@@ -503,7 +514,7 @@ watch(
     syncBodyScrollLock(visible)
     if (visible) {
       await Promise.all([authStore.loadMethods(true), systemSettingsStore.loadPublicSettings(true)])
-      syncActiveMethod()
+      syncActiveMethod(true)
       resetForm()
     } else {
       clearCountdownTimer()

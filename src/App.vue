@@ -6,6 +6,7 @@
       <ThemeToggle />
       <LoginModal
         :visible="loginModalVisible"
+        :source="loginModalSource"
         @update:visible="setLoginModalVisible"
       />
       <MarketingModal
@@ -18,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { watch, defineAsyncComponent } from 'vue'
+import { computed, watch, defineAsyncComponent } from 'vue'
 import { ElConfigProvider } from 'element-plus'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import ThemeToggle from '@/components/ThemeToggle.vue'
@@ -36,15 +37,16 @@ import { useMarketingModalStore } from '@/stores/marketing-modal'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const { loginModalVisible, openLoginModal, setLoginModalVisible } = useLoginModalStore()
+const { loginModalVisible, loginModalSource, openLoginModal, setLoginModalVisible } = useLoginModalStore()
 const { marketingModalVisible, setMarketingModalVisible } = useMarketingModalStore()
+const isAdminRoute = computed(() => route.matched.some(record => record.meta.requiresAdmin === true))
 // 通过路由 query 统一拉起全局登录弹窗，兼容守卫回跳场景。
 watch(() => route.query.login, (loginFlag) => {
   if (loginFlag !== '1' || authStore.isLoggedIn.value) {
     return
   }
 
-  openLoginModal('route-guard')
+  openLoginModal(isAdminRoute.value ? 'admin-route-guard' : 'route-guard')
   void router.replace({
     path: route.path,
     query: {
