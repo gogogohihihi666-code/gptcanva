@@ -1,54 +1,51 @@
-name: Docker 镜像发布
+name: Manual Docker image publication
 
 on:
-  push:
-    branches:
-      - master
-    tags:
-      - 'v*'
   workflow_dispatch:
+    inputs:
+      release_commit:
+        description: Full 40-character commit SHA to publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
 
 jobs:
-  build-and-push:
-    name: 构建并推送多架构镜像
+  publish:
+    name: Publish immutable commit image
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    timeout-minutes: 60
     env:
       IMAGE_NAME: couei/canana-vue
+      IMAGE_TAG: sha-${{ inputs.release_commit }}
       VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
       VITE_PROVIDER_DEFAULT_BASE_URL: ${{ vars.VITE_PROVIDER_DEFAULT_BASE_URL || 'https://api.chatfire.site/v1' }}
 
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
-      - name: 设置 Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: 读取 package.json 版本号
-        id: package-version
+      - name: Validate release commit
         shell: bash
         run: |
-          VERSION=$(node -e "process.stdout.write(require('./package.json').version)")
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          if [[ ! "${{ inputs.release_commit }}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "release_commit must be a full lowercase commit SHA."
+            exit 1
+          fi
 
-      - name: 登录 Docker Hub
+      - name: Check out approved commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_commit }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: 生成镜像标签与元数据
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest
-            type=raw,value=v${{ steps.package-version.outputs.version }},enable=${{ steps.package-version.outputs.version != '' }}
-
-      - name: 构建并推送 Docker 镜像
+      - name: Build and publish immutable image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -57,8 +54,7 @@ jobs:
           push: true
           provenance: false
           sbom: false
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |

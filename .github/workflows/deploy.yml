@@ -1,66 +1,67 @@
-name: Docker 部署
+name: Manual production deployment
 
 on:
-  workflow_run:
-    workflows:
-      - Docker 镜像发布
-    types:
-      - completed
   workflow_dispatch:
+    inputs:
+      release_commit:
+        description: Full 40-character commit SHA whose image was published
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    name: 拉取最新镜像并重启容器
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    name: Deploy immutable commit image
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
 
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
-      - name: 校验部署密钥
+      - name: Validate release commit
+        shell: bash
         run: |
-          if [ -z "${{ secrets.SERVER_HOST }}" ]; then
-            echo "缺少 GitHub Secrets: SERVER_HOST"
+          if [[ ! "${{ inputs.release_commit }}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "release_commit must be a full lowercase commit SHA."
             exit 1
           fi
 
-          if [ -z "${{ secrets.SERVER_USERNAME }}" ]; then
-            echo "缺少 GitHub Secrets: SERVER_USERNAME"
-            exit 1
-          fi
+      - name: Check out approved commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_commit }}
 
-          if [ -z "${{ secrets.SERVER_SSH_KEY }}" ]; then
-            echo "缺少 GitHub Secrets: SERVER_SSH_KEY"
-            exit 1
-          fi
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          required=(
+            SERVER_HOST SERVER_USERNAME SERVER_SSH_KEY DEPLOY_PATH DATABASE_URL
+            PROVIDER_CONFIG_SECRET STORAGE_CONFIG_SECRET VITE_API_BASE_URL
+            CORS_ALLOWED_ORIGINS
+          )
+          for name in "${required[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "Required production configuration is missing: $name"
+              exit 1
+            fi
+          done
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USERNAME: ${{ secrets.SERVER_USERNAME }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PROVIDER_CONFIG_SECRET: ${{ secrets.PROVIDER_CONFIG_SECRET }}
+          STORAGE_CONFIG_SECRET: ${{ secrets.STORAGE_CONFIG_SECRET }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
 
-          if [ -z "${{ secrets.DEPLOY_PATH }}" ]; then
-            echo "缺少 GitHub Secrets: DEPLOY_PATH"
-            exit 1
-          fi
-
-          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
-            echo "缺少 GitHub Secrets: DATABASE_URL"
-            exit 1
-          fi
-
-          if [ -z "${{ secrets.PROVIDER_CONFIG_SECRET }}" ]; then
-            echo "缺少 GitHub Secrets: PROVIDER_CONFIG_SECRET"
-            exit 1
-          fi
-
-          if [ -z "${{ secrets.VITE_API_BASE_URL }}" ]; then
-            echo "缺少 GitHub Secrets: VITE_API_BASE_URL"
-            exit 1
-          fi
-
-          if [ -z "${{ secrets.CORS_ALLOWED_ORIGINS }}" ]; then
-            echo "缺少 GitHub Secrets: CORS_ALLOWED_ORIGINS"
-            exit 1
-          fi
-
-      - name: 初始化部署目录
+      - name: Initialize deployment directory
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -68,11 +69,10 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
-            set -eux
-            DEPLOY_DIR="${{ secrets.DEPLOY_PATH }}"
-            mkdir -p "$DEPLOY_DIR"
+            set -eu
+            mkdir -p "${{ secrets.DEPLOY_PATH }}"
 
-      - name: 上传 docker-compose.yml
+      - name: Upload compose definition
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -83,7 +83,7 @@ jobs:
           target: ${{ secrets.DEPLOY_PATH }}
           strip_components: 0
 
-      - name: 通过 SSH 部署 Docker 容器
+      - name: Deploy through SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -91,13 +91,11 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
-            set -eux
-
-            DEPLOY_DIR="${{ secrets.DEPLOY_PATH }}"
-            mkdir -p "$DEPLOY_DIR"
-            cd "$DEPLOY_DIR"
+            set -eu
+            cd "${{ secrets.DEPLOY_PATH }}"
 
             cat > .env <<'EOF'
+            APP_IMAGE=couei/canana-vue:sha-${{ inputs.release_commit }}
             SERVER_PORT=5409
             VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}
             VITE_PROVIDER_DEFAULT_BASE_URL=https://api.chatfire.site/v1
@@ -122,20 +120,7 @@ jobs:
             AUTH_LOGIN_CODE_EXPIRE_MINUTES=5
             AUTH_SESSION_EXPIRE_DAYS=30
             EOF
-            
-            ls -la
-            # 清理历史遗留的同名容器，避免旧部署方式残留导致 compose 重建失败。
-            docker rm -f canana-vue-app || true
+
             docker compose pull
             docker compose up -d --force-recreate --remove-orphans
-            docker image prune -f
             docker ps
-
-      - name: 发送部署通知
-        if: always()
-        run: |
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "✅ Docker 部署成功！"
-          else
-            echo "❌ Docker 部署失败！"
-          fi

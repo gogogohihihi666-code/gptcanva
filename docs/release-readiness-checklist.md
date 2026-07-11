@@ -1,5 +1,9 @@
 # Release Readiness Checklist
 
+`HUMAN_GITHUB_ENVIRONMENT_APPROVAL_CONFIGURATION_REQUIRED`
+
+The production deployment workflow references the GitHub `production` environment. Required reviewers and environment protection rules must be configured manually in the GitHub repository settings before any deployment is authorized.
+
 Date: 2026-07-11
 
 This checklist defines the work that must be completed before moving the current local no-call MVP toward any remote push, real provider smoke, real payment validation, storage smoke, or production deployment.

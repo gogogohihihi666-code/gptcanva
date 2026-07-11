@@ -1,7 +1,7 @@
 services:
   # 应用服务，同时承载前端与后端。
   app:
-    image: couei/canana-vue:latest
+    image: ${APP_IMAGE:?Set APP_IMAGE to an immutable image reference}
     container_name: canana-vue-app
     restart: unless-stopped
     env_file:
