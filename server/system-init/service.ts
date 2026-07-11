@@ -173,7 +173,7 @@ export const initializeSystem = async (payload: {
 
   const passwordHash = await hashUserPassword(password)
   const systemConfig = await getAdminSystemConfig()
-  const nextSiteName = normalizeSiteText(payload.siteName, systemConfig.siteInfo.siteName || 'Canana')
+  const nextSiteName = normalizeSiteText(payload.siteName, systemConfig.siteInfo.siteName || 'OKWook')
   const initializedAt = new Date().toISOString()
 
   // 先确保管理员密码登录方式配置存在，避免身份表写入时命中 method_type 外键约束。

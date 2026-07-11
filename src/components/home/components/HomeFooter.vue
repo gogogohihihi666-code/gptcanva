@@ -2,6 +2,8 @@
   <footer class="home-footer-canana">
     <div class="home-footer-canana__brand">{{ siteName }}</div>
     <div v-if="siteDescription" class="home-footer-canana__description">{{ siteDescription }}</div>
+    <div class="home-footer-canana__slogan">{{ BRAND_ENGLISH_SLOGAN }}</div>
+    <div class="home-footer-canana__domain">{{ BRAND_SITE_HOST }}</div>
     <div class="home-footer-canana__links">
       <RouterLink class="home-footer-canana__link" to="/policies/user-agreement">{{ policy.userAgreementTitle }}</RouterLink>
       <RouterLink class="home-footer-canana__link" to="/policies/privacy-policy">{{ policy.privacyPolicyTitle }}</RouterLink>
@@ -19,11 +21,12 @@
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useSystemSettingsStore } from '@/stores/system-settings'
+import { BRAND_ENGLISH_SLOGAN, BRAND_SITE_HOST, resolveBrandName } from '@/config/brand'
 
 const systemSettingsStore = useSystemSettingsStore()
 const siteInfo = computed(() => systemSettingsStore.publicSystemSettings.value.siteInfo)
 const policy = computed(() => systemSettingsStore.publicSystemSettings.value.policySettings)
-const siteName = computed(() => siteInfo.value.siteName || 'Canana')
+const siteName = computed(() => resolveBrandName(siteInfo.value.siteName))
 const siteDescription = computed(() => siteInfo.value.siteDescription || '')
 </script>
 
@@ -44,10 +47,17 @@ const siteDescription = computed(() => siteInfo.value.siteDescription || '')
 }
 
 .home-footer-canana__description,
-.home-footer-canana__meta {
+.home-footer-canana__meta,
+.home-footer-canana__slogan,
+.home-footer-canana__domain {
   font-size: 13px;
   line-height: 1.8;
   color: var(--text-secondary);
+}
+
+.home-footer-canana__slogan {
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .home-footer-canana__links {

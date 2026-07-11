@@ -63,6 +63,7 @@ import CenterMenu from './CenterMenu.vue'
 import BottomMenu from './BottomMenu.vue'
 import HomeSideMenuIcon from './HomeSideMenuIcon.vue'
 import type { SystemConfigPayload } from '@/api/system-config'
+import { resolveBrandName } from '@/config/brand'
 
 const props = withDefaults(defineProps<{
   systemSettingsOverride?: SystemConfigPayload | null
@@ -101,11 +102,11 @@ const resolvedSiteLogoUrl = computed(() => {
 })
 
 const resolvedSiteName = computed(() => {
-  return String(
+  return resolveBrandName(String(
     props.systemSettingsOverride?.siteInfo.siteName
     || publicSystemSettings.value.siteInfo.siteName
     || 'Canana',
-  ).trim() || 'Canana'
+  ).trim())
 })
 
 const handleTopItemClick = (item?: { actionType?: string; actionValue?: string }) => {

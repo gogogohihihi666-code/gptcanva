@@ -15,6 +15,7 @@
               @search="handleSearch"
               @open-work-detail="handleOpenWorkDetail"
             />
+            <HomeFooter />
           </div>
         </div>
       </div>

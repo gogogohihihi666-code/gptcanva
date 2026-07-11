@@ -9,11 +9,12 @@ import {
 } from '@/api/system-config'
 import { applySystemThemeRuntime, refreshSystemThemeRuntime } from '@/utils/theme-runtime'
 import { useThemePreferenceStore } from '@/stores/theme-preference'
+import { BRAND_META_DESCRIPTION, BRAND_NAME, resolveBrandDescription, resolveBrandName } from '@/config/brand'
 
 const createDefaultSettings = (): SystemConfigPayload => ({
   siteInfo: {
-    siteName: 'Canana',
-    siteDescription: '',
+    siteName: BRAND_NAME,
+    siteDescription: BRAND_META_DESCRIPTION,
     siteLogoUrl: '',
     siteIconUrl: '',
     icpText: '',
@@ -67,12 +68,10 @@ const syncSiteRuntime = (settings: SystemConfigPayload) => {
     return
   }
 
-  const siteName = String(settings.siteInfo.siteName || '').trim()
-  if (siteName) {
-    document.title = siteName
-  }
+  const siteName = resolveBrandName(settings.siteInfo.siteName)
+  document.title = siteName
 
-  const description = String(settings.siteInfo.siteDescription || '').trim()
+  const description = resolveBrandDescription(settings.siteInfo.siteDescription)
   let descriptionMeta = document.querySelector('meta[name="description"]')
   if (!descriptionMeta) {
     descriptionMeta = document.createElement('meta')
@@ -80,6 +79,19 @@ const syncSiteRuntime = (settings: SystemConfigPayload) => {
     document.head.appendChild(descriptionMeta)
   }
   descriptionMeta.setAttribute('content', description)
+
+  const syncOpenGraphMeta = (property: string, content: string) => {
+    let meta = document.querySelector(`meta[property="${property}"]`)
+    if (!meta) {
+      meta = document.createElement('meta')
+      meta.setAttribute('property', property)
+      document.head.appendChild(meta)
+    }
+    meta.setAttribute('content', content)
+  }
+
+  syncOpenGraphMeta('og:title', siteName)
+  syncOpenGraphMeta('og:description', description)
 
   const iconUrl = String(settings.siteInfo.siteIconUrl || '').trim()
   if (!iconUrl) {
@@ -101,7 +113,15 @@ const syncThemeRuntime = (settings: SystemConfigPayload) => {
 }
 
 const applyPublicSystemSettings = (settings?: SystemConfigPayload | null) => {
-  publicSystemSettings.value = settings || createDefaultSettings()
+  const nextSettings = settings || createDefaultSettings()
+  publicSystemSettings.value = {
+    ...nextSettings,
+    siteInfo: {
+      ...nextSettings.siteInfo,
+      siteName: resolveBrandName(nextSettings.siteInfo.siteName),
+      siteDescription: resolveBrandDescription(nextSettings.siteInfo.siteDescription),
+    },
+  }
   syncSiteRuntime(publicSystemSettings.value)
   syncThemeRuntime(publicSystemSettings.value)
   return publicSystemSettings.value

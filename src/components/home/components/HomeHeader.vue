@@ -11,6 +11,9 @@
       <span v-else-if="currentModeLabel" class="home-header-mode-label">{{ currentModeLabel }}</span>
       {{ workbenchSuffixText }}
     </div>
+    <div v-if="showWorkbenchTitle" class="home-header-brand-slogan">
+      {{ BRAND_CHINESE_SLOGAN }}
+    </div>
     <div
       v-if="showWorkbenchGenerator"
       :class="{ 'home-header-preview-mask': previewReadonly }"
@@ -52,6 +55,7 @@ import { useSystemSettingsStore } from '@/stores/system-settings'
 import { useHomeLayoutConfig } from '@/composables/useHomeLayoutConfig'
 import type { SystemConfigPayload, SystemHomeBannerItemConfig } from '@/api/system-config'
 import type { CreationType } from '@/components/generate/selectors'
+import { BRAND_CHINESE_SLOGAN, resolveBrandName } from '@/config/brand'
 
 interface HomeHeaderSendOptions {
   model?: string
@@ -113,7 +117,7 @@ const resolvedBannerItems = computed(() => {
 })
 
 const siteNamePrefix = computed(() => {
-  const siteName = String(resolvedSystemSettings.value.siteInfo.siteName || '').trim()
+  const siteName = resolveBrandName(resolvedSystemSettings.value.siteInfo.siteName)
   return siteName ? `${siteName} · ` : ''
 })
 const showWorkbenchTitle = computed(() => resolvedWorkbenchSettings.value.titleEnabled !== false)
@@ -177,6 +181,16 @@ const handleSend = (message: string, type: CreationType, options?: HomeHeaderSen
 .home-header-content-generator {
   width: min(1195px, calc(100vw - 32px));
   margin: 0 auto;
+}
+
+.home-header-brand-slogan {
+  margin: 8px auto 16px;
+  max-width: min(1195px, calc(100vw - 32px));
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .home-header-site-description-canana {

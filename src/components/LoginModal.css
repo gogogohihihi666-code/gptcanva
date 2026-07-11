@@ -635,3 +635,10 @@ html[data-theme='light'] .login-subtitle-canana,
 body[lv-theme='light'] .login-subtitle-canana {
   color: rgba(15, 23, 42, 0.62);
 }
+.login-welcome-title {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 20px;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}

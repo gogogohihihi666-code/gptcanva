@@ -12,7 +12,7 @@
           <div class="admin-form__grid">
             <div class="admin-form__field">
               <label class="admin-form__label" for="system-site-name">站点名称</label>
-              <input id="system-site-name" v-model.trim="form.siteInfo.siteName" class="admin-input" type="text" placeholder="例如：Canana AI">
+              <input id="system-site-name" v-model.trim="form.siteInfo.siteName" class="admin-input" type="text" placeholder="例如：OKWook AI">
             </div>
             <div class="admin-form__field">
               <label class="admin-form__label" for="system-site-icon">站点图标</label>

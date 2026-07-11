@@ -82,8 +82,8 @@ const DEFAULT_HOME_BANNER_ITEMS = [
 
 const createDefaultSystemConfig = () => ({
   siteInfo: {
-    siteName: 'Canana',
-    siteDescription: '',
+    siteName: 'OKWook',
+    siteDescription: 'Confront It OK. Astonish It Wo. Command It OK.',
     siteLogoUrl: '',
     siteIconUrl: '',
     icpText: '',

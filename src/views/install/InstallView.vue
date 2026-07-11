@@ -167,6 +167,7 @@ import { uploadStorageFile } from '@/api/storage'
 import { useAuthStore } from '@/stores/auth'
 import { useSystemInitStore } from '@/stores/system-init'
 import { useSystemSettingsStore } from '@/stores/system-settings'
+import { BRAND_NAME, resolveBrandName } from '@/config/brand'
 import InstallAdminForm, { type InstallAdminFormModel } from './components/InstallAdminForm.vue'
 import InstallActionButton from './components/InstallActionButton.vue'
 import InstallSuccess from './components/InstallSuccess.vue'
@@ -197,15 +198,15 @@ const adminForm = reactive<InstallAdminFormModel>({
 })
 
 const websiteForm = reactive<InstallWebsiteFormModel>({
-  siteName: 'CananaMind',
+  siteName: BRAND_NAME,
   siteDescription: '',
   siteLogoUrl: '',
   siteIconUrl: '',
 })
 
 const submitting = computed(() => systemInitStore.systemInitLoading.value)
-const currentSiteName = computed(() => websiteForm.siteName || systemSettingsStore.siteName.value || 'CananaMind')
-const brandInitial = computed(() => currentSiteName.value.slice(0, 1).toUpperCase() || 'C')
+const currentSiteName = computed(() => resolveBrandName(websiteForm.siteName || systemSettingsStore.siteName.value))
+const brandInitial = computed(() => currentSiteName.value.slice(0, 1).toUpperCase() || 'O')
 
 const usernameError = computed(() => {
   if (!adminForm.username) return ''

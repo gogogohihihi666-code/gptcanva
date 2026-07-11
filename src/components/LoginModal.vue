@@ -27,7 +27,8 @@
                 <span>
                   <div class="title-UZtkUa">
 <!--                    <img class="title-logo" :src="titleLogoSrc" alt="">-->
-                    <div class="title-text-byG0WC">{{ welcomeTitle }}</div>
+                    <div class="title-text-byG0WC">{{ BRAND_NAME }}</div>
+                    <div v-if="welcomeTitle !== BRAND_NAME" class="login-welcome-title">{{ welcomeTitle }}</div>
                   </div>
                   <div v-if="welcomeSubtitle" class="login-subtitle-canana">{{ welcomeSubtitle }}</div>
                 </span>
@@ -191,6 +192,7 @@ import type { AuthMethodType } from '@/api/auth'
 import { createOAuthAuthorizeUrl, requestAuthVerificationCode } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
 import { useSystemSettingsStore } from '@/stores/system-settings'
+import { BRAND_NAME, resolveBrandName } from '@/config/brand'
 import { useAsyncAction } from '@/composables'
 
 const props = defineProps<{
@@ -248,7 +250,7 @@ const oauthMethods = computed(() => authStore.enabledMethods.value.filter(item =
 const publicSettings = computed(() => systemSettingsStore.publicSystemSettings.value)
 const policySettings = computed(() => publicSettings.value.policySettings)
 const agreementTextPrefix = computed(() => policySettings.value.agreementTextPrefix || '已阅读并同意')
-const welcomeTitle = computed(() => publicSettings.value.loginSettings.welcomeTitle || publicSettings.value.siteInfo.siteName || '欢迎登录')
+const welcomeTitle = computed(() => publicSettings.value.loginSettings.welcomeTitle || resolveBrandName(publicSettings.value.siteInfo.siteName))
 const welcomeSubtitle = computed(() => publicSettings.value.loginSettings.welcomeSubtitle || '')
 const userAgreementHref = computed(() => policySettings.value.userAgreementUrl || '/policies/user-agreement')
 const privacyPolicyHref = computed(() => policySettings.value.privacyPolicyUrl || '/policies/privacy-policy')
