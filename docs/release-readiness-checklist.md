@@ -229,6 +229,8 @@ Before production migration:
 
 ## Backup And Rollback Checklist
 
+Design baseline: `docs/production-database-backup-recovery-rollback-design.md` defines an approved target of RPO <= 4 hours and RTO <= 4 hours. It is design-only evidence. No production backup, restore, external destination, or rehearsal has been run.
+
 Before first production deploy:
 
 - Create a database backup.
