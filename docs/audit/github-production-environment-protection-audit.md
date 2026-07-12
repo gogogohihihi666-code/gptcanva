@@ -6,9 +6,9 @@ Date: 2026-07-12
 
 Initial local HEAD: `6aea3f2` on `master`. The worktree was clean. Remote fetch succeeded and local `master` was 12 commits ahead of `origin/master` with no remote-only commits.
 
-Final status: `WAITING_FOR_HUMAN_PRODUCTION_ENVIRONMENT_CREATION`.
+Final status: `SAFE_STOP_SECURITY_BOUNDARY`.
 
-GitHub CLI is authenticated. The repository is public, owned by a user account, and uses `master` as its default branch. The Environment list is empty, so `production` does not exist. This audit therefore verified every local workflow rule and the missing-Environment condition, then stopped before reviewer, self-review, administrator-bypass, branch-policy, and Environment-secret assertions. No GitHub workflow, release, image publication, deployment, or push was triggered.
+GitHub CLI is authenticated. The repository is public, owned by a user account, and uses `master` as its default branch. The `production` Environment now exists and its deployment policy is exactly `master`. The actual API response still reports administrator bypass as allowed and contains no required-reviewers rule. This audit therefore stops before any deployment authorization. No GitHub workflow, release, image publication, deployment, or push was triggered.
 
 ## Repository Identity
 
@@ -62,19 +62,19 @@ SSH and SCP occur only inside this manually dispatched deployment workflow. The 
 
 ## Unverified Production Environment Controls
 
-GitHub API evidence: Environment list is empty and `GET /environments/production` returned HTTP 404. `production` must be created and configured before any manual deployment workflow is dispatched. A workflow reference alone does not prove protection, because GitHub can create an unprotected Environment at dispatch time.
+GitHub API evidence: `production` exists. `GET /environments/production` reports `can_admins_bypass=true` and returns only `branch_policy` in `protection_rules`; no `required_reviewers` rule is present. The deployment branch-policy endpoint contains exactly one policy: `master`.
 
 The following require GitHub-authenticated read access or an authorized human UI check:
 
 | Control | Current result | Required passing state |
 |---|---|---|
-| `production` Environment exists | false | Exists before any deploy dispatch |
-| Required reviewers | NOT_VERIFIED | Enabled with approved reviewer set |
-| Reviewer list | WAITING_FOR_HUMAN_APPROVER_LIST_CONFIRMATION | Exact set matches approved users/teams |
-| Prevent self-review | NOT_VERIFIED | Enabled |
-| Administrator bypass | WAITING_FOR_HUMAN_ADMIN_BYPASS_UI_CONFIRMATION | Disabled |
-| Deployment branch/tag policy | NOT_VERIFIED | Only approved branch or protected release tags |
-| Environment secrets | NOT_VERIFIED; Environment absent | Deployment credentials scoped to `production` |
+| `production` Environment exists | true | Exists before any deploy dispatch |
+| Required reviewers | false in REST Environment response | Enabled with approved reviewer set |
+| Reviewer list | No reviewer data available because required-reviewers rule is absent; expected list also missing | Exact set matches approved users/teams |
+| Prevent self-review | NOT_VERIFIED; required-reviewers rule is absent | Enabled |
+| Administrator bypass | true | Disabled |
+| Deployment branch/tag policy | PASS, exact policy `master` | Only approved branch or protected release tags |
+| Environment secrets | 0 | Deployment credentials scoped to `production` |
 | Repository-level duplicate secrets | Repository-scoped count is 0; organization scope NOT_VERIFIED | Production credentials absent outside Environment scope |
 | Repository visibility and plan capability | NOT_VERIFIED | Plan supports required reviewers for this visibility |
 
@@ -82,12 +82,12 @@ The following require GitHub-authenticated read access or an authorized human UI
 
 Open the repository in GitHub, then go to `Settings` → `Environments` → `production`.
 
-1. Create `production` if it does not already exist. Do this before any deployment workflow is dispatched.
-2. Enable Required reviewers. Add only the approved user accounts and teams.
-3. Enable Prevent self-review.
-4. Disable administrator bypass for configured protection rules.
+1. Open the existing `production` Environment.
+2. Re-enable Required reviewers, add only the approved user accounts and teams, and use the page's save action. The REST API must then return a `required_reviewers` protection rule.
+3. Enable Prevent self-review in that reviewer rule.
+4. Disable administrator bypass for configured protection rules. The REST API must then return `can_admins_bypass=false`.
 5. Configure Deployment branches and tags. Select only protected `master` or protected release tags. Do not permit all branches and tags.
-6. Under Environment secrets, place deployment-only credentials there. Do not copy their values into repository-level secrets.
+6. Under Environment secrets, place deployment-only credentials there before a deployment is authorized. Current count is 0. Do not copy their values into repository-level secrets.
 7. Confirm no unapproved user or team can approve production deployment.
 8. Confirm the repository plan and visibility support required reviewers for this repository. If private-repository reviewer protection is unavailable, do not weaken the rule. Choose a plan upgrade or an external approval system in a separately approved decision.
 

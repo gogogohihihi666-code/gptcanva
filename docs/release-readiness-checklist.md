@@ -26,9 +26,9 @@ Last frozen baseline update: 2026-07-11.
 ## 2026-07-12 GitHub Production Protection Audit
 
 - Local workflow protections: PASS. Ordinary push and pull request CI contains only install, no-call tests, and builds. Manual image publication and manual deployment are separate workflows, both require a full commit SHA, and deployment declares `environment: production` with a concurrency group.
-- GitHub Environment protections: BLOCKED. Authenticated GitHub API confirms the repository has no Environments and `production` does not exist. Reviewer list, prevent-self-review, administrator-bypass setting, branch policy, and Environment Secret scope cannot exist or be verified until it is created and configured.
+- GitHub Environment protections: SAFE STOP. Authenticated GitHub API confirms `production` exists and its sole deployment branch policy is `master`, but `can_admins_bypass=true` and no `required_reviewers` protection rule is returned. Prevent self-review and reviewer identities therefore remain unverified. Environment Secret count is 0 and repository Secret count is 0.
 - Expected reviewer variable `OKWOOK_EXPECTED_PRODUCTION_REVIEWERS`: MISSING.
-- Final status: `WAITING_FOR_HUMAN_PRODUCTION_ENVIRONMENT_CREATION`. No workflow, image publication, deployment, or push occurred. See `docs/audit/github-production-environment-protection-audit.md` for the exact human UI checklist.
+- Final status: `SAFE_STOP_SECURITY_BOUNDARY`. Re-save reviewer protection, enable prevent-self-review, and disable administrator bypass before any deployment authorization. No workflow, image publication, deployment, or push occurred. See `docs/audit/github-production-environment-protection-audit.md` for the exact human UI checklist.
 
 ## Current Frozen Version
 
