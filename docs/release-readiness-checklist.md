@@ -12,6 +12,17 @@ Last domain and brand update: 2026-07-09.
 
 Last frozen baseline update: 2026-07-11.
 
+## 2026-07-12 Full-Stack Audit
+
+- Current audit baseline: `582a89d`; worktree was clean at audit start.
+- `npm.cmd run test`: PASS, 111 passed, 0 skipped.
+- `npm.cmd run build:service`, `npm.cmd run build`, and `npm.cmd run type-check`: PASS. The client build emitted component naming, CSS parsing/minification, and large-chunk warnings.
+- Local `5409` and `5010` system-init health endpoints: PASS, 200 JSON. Docker and local MariaDB were running.
+- Current browser route check found `OKWook` title, canonical, metadata, ordinary-user admin rejection, and 390px no-horizontal-overflow. It also found that public, login, register, account, generate, and install routes rendered only the theme control in the current session. This is a P1 regression requiring a dedicated investigation before a release decision.
+- Disposable inventory integration command was safely blocked as `NOT_AUTHORIZED` because the exact disposable Gate was absent in the audit process. It did not connect or write. Earlier synthetic disposable evidence remains historical only.
+- Full evidence, feature classification, and test map: `docs/audit/full-stack-feature-readiness-audit.md`, `docs/audit/full-stack-feature-matrix.md`, and `docs/audit/full-stack-test-coverage-map.md`.
+- Code deployment and public enablement remain not ready. Payment, AI Provider, Storage, verification delivery, production database, backup/restore, domain HTTPS, monitoring, and deployment rehearsal require separate authorized work.
+
 ## Current Frozen Version
 
 - Current fully verified no-call code baseline: `c8fa60d`.
