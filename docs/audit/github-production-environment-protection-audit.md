@@ -22,6 +22,12 @@ GitHub CLI is authenticated. The repository is public, owned by a user account, 
 | GitHub plan capability | NOT_VERIFIED; authenticated user API did not return a plan field |
 | Expected reviewer list | `OKWOOK_EXPECTED_PRODUCTION_REVIEWERS` was absent |
 
+## Reviewer Access Invitation
+
+On 2026-07-12, an authorized `read` collaborator invitation was sent to `pc-fans-mac`. GitHub API confirms the invitation is pending and its permission is `read`. No write, maintain, or administrator permission was granted.
+
+The reviewer rule cannot be created until the invitee accepts this invitation. After acceptance, rerun the reviewer preflight, then configure the authorized reviewer with `prevent_self_review=true` and re-read the Environment API.
+
 ## Local Workflow Evidence
 
 ### Trigger relationship
@@ -69,7 +75,7 @@ The following require GitHub-authenticated read access or an authorized human UI
 | Control | Current result | Required passing state |
 |---|---|---|
 | `production` Environment exists | true | Exists before any deploy dispatch |
-| Required reviewers | false in REST Environment response | Enabled with approved reviewer set |
+| Required reviewers | false in REST Environment response; intended reviewer invite pending | Enabled with approved reviewer set |
 | Reviewer list | No reviewer data available because required-reviewers rule is absent; expected list also missing | Exact set matches approved users/teams |
 | Prevent self-review | NOT_VERIFIED; required-reviewers rule is absent | Enabled |
 | Administrator bypass | false | Disabled |
@@ -91,6 +97,8 @@ Open the repository in GitHub, then go to `Settings` → `Environments` → `pro
 7. Confirm no unapproved user or team can approve production deployment.
 8. Confirm the repository plan and visibility support required reviewers for this repository. If private-repository reviewer protection is unavailable, do not weaken the rule. Choose a plan upgrade or an external approval system in a separately approved decision.
 
+The `pc-fans-mac` invitee must accept the pending read invitation before step 2 can succeed.
+
 After GitHub CLI is installed and authenticated, re-run this audit with a non-sensitive value such as:
 
 ```text
@@ -107,6 +115,7 @@ Only identifiers belong in that variable. No credential or secret value is neede
 ## Safety Declaration
 
 - GitHub workflow triggered: false
+- Reviewer invitation sent: true, pending acceptance
 - Docker image published: false
 - Deployment performed: false
 - Git push: false
