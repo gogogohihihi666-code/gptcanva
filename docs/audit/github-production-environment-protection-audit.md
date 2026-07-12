@@ -8,14 +8,14 @@ Initial local HEAD: `6aea3f2` on `master`. The worktree was clean. Remote fetch 
 
 Final status: `SAFE_STOP_SECURITY_BOUNDARY`.
 
-GitHub CLI is authenticated. The repository is public, owned by a user account, and uses `master` as its default branch. The `production` Environment now exists and its deployment policy is exactly `master`. The actual API response still reports administrator bypass as allowed and contains no required-reviewers rule. This audit therefore stops before any deployment authorization. No GitHub workflow, release, image publication, deployment, or push was triggered.
+GitHub CLI is authenticated. The repository is public, owned by a user account, and uses `main` as its default branch. The `production` Environment exists and its deployment policy is exactly `main`. The actual API response confirms administrator bypass is disabled, but still contains no required-reviewers rule. This audit therefore stops before any deployment authorization. No GitHub workflow, release, image publication, deployment, or push was triggered.
 
 ## Repository Identity
 
 | Field | Result |
 |---|---|
 | Origin repository identity | `gogogohihihi666-code/gptcanva`, derived from the credential-free origin URL |
-| Default branch | `master` |
+| Default branch | `main` |
 | Visibility | `PUBLIC` |
 | Owner type | `User` |
 | GitHub CLI authentication | Available through Windows Credential Manager/keyring |
@@ -62,7 +62,7 @@ SSH and SCP occur only inside this manually dispatched deployment workflow. The 
 
 ## Unverified Production Environment Controls
 
-GitHub API evidence: `production` exists. `GET /environments/production` reports `can_admins_bypass=true` and returns only `branch_policy` in `protection_rules`; no `required_reviewers` rule is present. The deployment branch-policy endpoint contains exactly one policy: `master`.
+GitHub API evidence: `production` exists. `GET /environments/production` reports `can_admins_bypass=false` and returns only `branch_policy` in `protection_rules`; no `required_reviewers` rule is present. The deployment branch-policy endpoint contains exactly one policy: `main`.
 
 The following require GitHub-authenticated read access or an authorized human UI check:
 
@@ -72,8 +72,8 @@ The following require GitHub-authenticated read access or an authorized human UI
 | Required reviewers | false in REST Environment response | Enabled with approved reviewer set |
 | Reviewer list | No reviewer data available because required-reviewers rule is absent; expected list also missing | Exact set matches approved users/teams |
 | Prevent self-review | NOT_VERIFIED; required-reviewers rule is absent | Enabled |
-| Administrator bypass | true | Disabled |
-| Deployment branch/tag policy | PASS, exact policy `master` | Only approved branch or protected release tags |
+| Administrator bypass | false | Disabled |
+| Deployment branch/tag policy | PASS, exact policy `main` | Only approved branch or protected release tags |
 | Environment secrets | 0 | Deployment credentials scoped to `production` |
 | Repository-level duplicate secrets | Repository-scoped count is 0; organization scope NOT_VERIFIED | Production credentials absent outside Environment scope |
 | Repository visibility and plan capability | NOT_VERIFIED | Plan supports required reviewers for this visibility |
@@ -85,8 +85,8 @@ Open the repository in GitHub, then go to `Settings` → `Environments` → `pro
 1. Open the existing `production` Environment.
 2. Re-enable Required reviewers, add only the approved user accounts and teams, and use the page's save action. The REST API must then return a `required_reviewers` protection rule.
 3. Enable Prevent self-review in that reviewer rule.
-4. Disable administrator bypass for configured protection rules. The REST API must then return `can_admins_bypass=false`.
-5. Configure Deployment branches and tags. Select only protected `master` or protected release tags. Do not permit all branches and tags.
+4. Administrator bypass already passes API verification with `can_admins_bypass=false`; preserve this setting.
+5. Configure Deployment branches and tags. Current API policy is correctly restricted to `main`; preserve it or choose protected release tags through a separately approved change. Do not permit all branches and tags.
 6. Under Environment secrets, place deployment-only credentials there before a deployment is authorized. Current count is 0. Do not copy their values into repository-level secrets.
 7. Confirm no unapproved user or team can approve production deployment.
 8. Confirm the repository plan and visibility support required reviewers for this repository. If private-repository reviewer protection is unavailable, do not weaken the rule. Choose a plan upgrade or an external approval system in a separately approved decision.
