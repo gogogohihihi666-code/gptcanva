@@ -6,20 +6,20 @@ Date: 2026-07-12
 
 Initial local HEAD: `6aea3f2` on `master`. The worktree was clean. Remote fetch succeeded and local `master` was 12 commits ahead of `origin/master` with no remote-only commits.
 
-Final status: `WAITING_FOR_HUMAN_GITHUB_AUTH`.
+Final status: `WAITING_FOR_HUMAN_PRODUCTION_ENVIRONMENT_CREATION`.
 
-GitHub CLI is unavailable on this machine. The unauthenticated GitHub REST request was rate-limited. This audit therefore verified every local workflow rule, then stopped before Environment, reviewer, secret-scope, repository visibility, plan capability, and administrator-bypass assertions. No GitHub workflow, release, image publication, deployment, or push was triggered.
+GitHub CLI is authenticated. The repository is public, owned by a user account, and uses `master` as its default branch. The Environment list is empty, so `production` does not exist. This audit therefore verified every local workflow rule and the missing-Environment condition, then stopped before reviewer, self-review, administrator-bypass, branch-policy, and Environment-secret assertions. No GitHub workflow, release, image publication, deployment, or push was triggered.
 
 ## Repository Identity
 
 | Field | Result |
 |---|---|
 | Origin repository identity | `gogogohihihi666-code/gptcanva`, derived from the credential-free origin URL |
-| Default branch | NOT_VERIFIED remotely |
-| Visibility | NOT_VERIFIED remotely |
-| Owner type | NOT_VERIFIED remotely |
-| GitHub CLI authentication | UNAVAILABLE, `gh` command is not installed |
-| GitHub plan capability | NOT_VERIFIED |
+| Default branch | `master` |
+| Visibility | `PUBLIC` |
+| Owner type | `User` |
+| GitHub CLI authentication | Available through Windows Credential Manager/keyring |
+| GitHub plan capability | NOT_VERIFIED; authenticated user API did not return a plan field |
 | Expected reviewer list | `OKWOOK_EXPECTED_PRODUCTION_REVIEWERS` was absent |
 
 ## Local Workflow Evidence
@@ -62,18 +62,20 @@ SSH and SCP occur only inside this manually dispatched deployment workflow. The 
 
 ## Unverified Production Environment Controls
 
+GitHub API evidence: Environment list is empty and `GET /environments/production` returned HTTP 404. `production` must be created and configured before any manual deployment workflow is dispatched. A workflow reference alone does not prove protection, because GitHub can create an unprotected Environment at dispatch time.
+
 The following require GitHub-authenticated read access or an authorized human UI check:
 
 | Control | Current result | Required passing state |
 |---|---|---|
-| `production` Environment exists | NOT_VERIFIED | Exists before any deploy dispatch |
+| `production` Environment exists | false | Exists before any deploy dispatch |
 | Required reviewers | NOT_VERIFIED | Enabled with approved reviewer set |
 | Reviewer list | WAITING_FOR_HUMAN_APPROVER_LIST_CONFIRMATION | Exact set matches approved users/teams |
 | Prevent self-review | NOT_VERIFIED | Enabled |
 | Administrator bypass | WAITING_FOR_HUMAN_ADMIN_BYPASS_UI_CONFIRMATION | Disabled |
 | Deployment branch/tag policy | NOT_VERIFIED | Only approved branch or protected release tags |
-| Environment secrets | NOT_VERIFIED | Deployment credentials scoped to `production` |
-| Repository-level duplicate secrets | NOT_VERIFIED | Production credentials absent outside Environment scope |
+| Environment secrets | NOT_VERIFIED; Environment absent | Deployment credentials scoped to `production` |
+| Repository-level duplicate secrets | Repository-scoped count is 0; organization scope NOT_VERIFIED | Production credentials absent outside Environment scope |
 | Repository visibility and plan capability | NOT_VERIFIED | Plan supports required reviewers for this visibility |
 
 ## Exact Human UI Checklist
