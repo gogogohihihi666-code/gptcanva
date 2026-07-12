@@ -26,10 +26,10 @@ Last frozen baseline update: 2026-07-11.
 ## 2026-07-12 GitHub Production Protection Audit
 
 - Local workflow protections: PASS. Ordinary push and pull request CI contains only install, no-call tests, and builds. Manual image publication and manual deployment are separate workflows, both require a full commit SHA, and deployment declares `environment: production` with a concurrency group.
-- GitHub Environment protections: SAFE STOP. Authenticated GitHub API confirms `production` exists, the default branch is `main`, its sole deployment branch policy is `main`, and `can_admins_bypass=false`. No `required_reviewers` protection rule is returned, so Prevent self-review and reviewer identities remain unverified. Environment Secret count is 0 and repository Secret count is 0.
-- Expected reviewer variable `OKWOOK_EXPECTED_PRODUCTION_REVIEWERS`: MISSING.
-- `pc-fans-mac` has an authorized `read` collaborator invitation pending acceptance. No higher repository permission was granted. Reviewer protection cannot be saved until that invitation is accepted.
-- Final status: `SAFE_STOP_SECURITY_BOUNDARY`. Re-save reviewer protection and enable prevent-self-review before any deployment authorization. Administrator bypass and the `main` branch policy already pass API verification. No workflow, image publication, deployment, or push occurred. See `docs/audit/github-production-environment-protection-audit.md` for the exact human UI checklist.
+- GitHub Environment protections: PASS. Authenticated GitHub API confirms `production` exists, the default branch and sole deployment branch policy are `main`, the single approved reviewer is `pc-fans-mac`, `prevent_self_review=true`, and `can_admins_bypass=false`.
+- `pc-fans-mac` accepted the authorized read-only collaborator invitation. No higher repository permission was granted.
+- Environment Secret count is 0 and repository Secret count is 0. Deployment remains fail-closed until separately authorized production credentials are deliberately added to Environment secrets.
+- Final status: `PASS_PRODUCTION_ENVIRONMENT_PROTECTED`. No workflow, image publication, deployment, or push occurred. See `docs/audit/github-production-environment-protection-audit.md` for the current evidence and future credential checklist.
 
 ## Current Frozen Version
 

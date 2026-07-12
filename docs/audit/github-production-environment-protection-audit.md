@@ -6,9 +6,9 @@ Date: 2026-07-12
 
 Initial local HEAD: `6aea3f2` on `master`. The worktree was clean. Remote fetch succeeded and local `master` was 12 commits ahead of `origin/master` with no remote-only commits.
 
-Final status: `SAFE_STOP_SECURITY_BOUNDARY`.
+Final status: `PASS_PRODUCTION_ENVIRONMENT_PROTECTED`.
 
-GitHub CLI is authenticated. The repository is public, owned by a user account, and uses `main` as its default branch. The `production` Environment exists and its deployment policy is exactly `main`. The actual API response confirms administrator bypass is disabled, but still contains no required-reviewers rule. This audit therefore stops before any deployment authorization. No GitHub workflow, release, image publication, deployment, or push was triggered.
+GitHub CLI is authenticated. The repository is public, owned by a user account, and uses `main` as its default branch. The `production` Environment exists and its deployment policy is exactly `main`. GitHub API confirms one User reviewer, `pc-fans-mac`, `prevent_self_review=true`, and `can_admins_bypass=false`. No GitHub workflow, release, image publication, deployment, or push was triggered.
 
 ## Repository Identity
 
@@ -24,9 +24,7 @@ GitHub CLI is authenticated. The repository is public, owned by a user account, 
 
 ## Reviewer Access Invitation
 
-On 2026-07-12, an authorized `read` collaborator invitation was sent to `pc-fans-mac`. GitHub API confirms the invitation is pending and its permission is `read`. No write, maintain, or administrator permission was granted.
-
-The reviewer rule cannot be created until the invitee accepts this invitation. After acceptance, rerun the reviewer preflight, then configure the authorized reviewer with `prevent_self_review=true` and re-read the Environment API.
+On 2026-07-12, an authorized `read` collaborator invitation was sent to `pc-fans-mac` and accepted. No write, maintain, or administrator permission was granted. GitHub API confirms the single Environment reviewer is the same account.
 
 ## Local Workflow Evidence
 
@@ -68,19 +66,19 @@ SSH and SCP occur only inside this manually dispatched deployment workflow. The 
 
 ## Unverified Production Environment Controls
 
-GitHub API evidence: `production` exists. `GET /environments/production` reports `can_admins_bypass=false` and returns only `branch_policy` in `protection_rules`; no `required_reviewers` rule is present. The deployment branch-policy endpoint contains exactly one policy: `main`.
+GitHub API evidence: `production` exists. `GET /environments/production` reports `can_admins_bypass=false` and returns `branch_policy` plus `required_reviewers` in `protection_rules`. The sole nested User reviewer is `pc-fans-mac`; `prevent_self_review=true`. The deployment branch-policy endpoint contains exactly one policy: `main`.
 
 The following require GitHub-authenticated read access or an authorized human UI check:
 
 | Control | Current result | Required passing state |
 |---|---|---|
 | `production` Environment exists | true | Exists before any deploy dispatch |
-| Required reviewers | false in REST Environment response; intended reviewer invite pending | Enabled with approved reviewer set |
-| Reviewer list | No reviewer data available because required-reviewers rule is absent; expected list also missing | Exact set matches approved users/teams |
-| Prevent self-review | NOT_VERIFIED; required-reviewers rule is absent | Enabled |
+| Required reviewers | true | Enabled with approved reviewer set |
+| Reviewer list | PASS, exact single User reviewer `pc-fans-mac` | Exact set matches approved users/teams |
+| Prevent self-review | true | Enabled |
 | Administrator bypass | false | Disabled |
 | Deployment branch/tag policy | PASS, exact policy `main` | Only approved branch or protected release tags |
-| Environment secrets | 0 | Deployment credentials scoped to `production` |
+| Environment secrets | 0; deployment will fail closed until credentials are intentionally configured | Deployment credentials scoped to `production` |
 | Repository-level duplicate secrets | Repository-scoped count is 0; organization scope NOT_VERIFIED | Production credentials absent outside Environment scope |
 | Repository visibility and plan capability | NOT_VERIFIED | Plan supports required reviewers for this visibility |
 
@@ -89,15 +87,14 @@ The following require GitHub-authenticated read access or an authorized human UI
 Open the repository in GitHub, then go to `Settings` → `Environments` → `production`.
 
 1. Open the existing `production` Environment.
-2. Re-enable Required reviewers, add only the approved user accounts and teams, and use the page's save action. The REST API must then return a `required_reviewers` protection rule.
-3. Enable Prevent self-review in that reviewer rule.
-4. Administrator bypass already passes API verification with `can_admins_bypass=false`; preserve this setting.
-5. Configure Deployment branches and tags. Current API policy is correctly restricted to `main`; preserve it or choose protected release tags through a separately approved change. Do not permit all branches and tags.
-6. Under Environment secrets, place deployment-only credentials there before a deployment is authorized. Current count is 0. Do not copy their values into repository-level secrets.
+2. Required reviewers, `pc-fans-mac`, and Prevent self-review already pass API verification; preserve these settings.
+3. Administrator bypass already passes API verification with `can_admins_bypass=false`; preserve this setting.
+4. Current deployment policy is correctly restricted to `main`; preserve it or choose protected release tags through a separately approved change. Do not permit all branches and tags.
+5. Under Environment secrets, place deployment-only credentials there before a deployment is authorized. Current count is 0. Do not copy their values into repository-level secrets.
 7. Confirm no unapproved user or team can approve production deployment.
 8. Confirm the repository plan and visibility support required reviewers for this repository. If private-repository reviewer protection is unavailable, do not weaken the rule. Choose a plan upgrade or an external approval system in a separately approved decision.
 
-The `pc-fans-mac` invitee must accept the pending read invitation before step 2 can succeed.
+`pc-fans-mac` has accepted the read invitation and is now the confirmed reviewer.
 
 After GitHub CLI is installed and authenticated, re-run this audit with a non-sensitive value such as:
 
@@ -115,7 +112,7 @@ Only identifiers belong in that variable. No credential or secret value is neede
 ## Safety Declaration
 
 - GitHub workflow triggered: false
-- Reviewer invitation sent: true, pending acceptance
+- Reviewer invitation sent and accepted: true, read permission only
 - Docker image published: false
 - Deployment performed: false
 - Git push: false
