@@ -158,7 +158,7 @@ The design becomes operationally accepted only when all items are recorded:
 
 ## Follow-Up Tasks
 
-1. Implement a synthetic-only backup manifest and authorization validator with no database or storage access.
+1. COMPLETE: Implement a synthetic-only backup manifest and authorization validator with no database or storage access. The implementation remains test-only and does not emit hashes or timestamps that could identify a real backup.
 2. Approve a backup destination and secret-management design.
 3. Implement backup and restore tooling in separate, reviewable commands with dry-run and isolated-target guards.
 4. Run an authorized isolated restore rehearsal.
