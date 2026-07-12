@@ -24,6 +24,13 @@ test('npm CI lockfile is versioned for reproducible dependency installation', ()
   assert.doesNotMatch(read('.gitignore'), /^package-lock\.json$/m)
 })
 
+test('CI supplies Prisma generation with an inert loopback database URL', () => {
+  const workflow = read('.github/workflows/ci.yml')
+
+  assert.match(workflow, /name: Install dependencies\s*\n\s+env:\s*\n\s+DATABASE_URL: mysql:\/\/ci:ci@127\.0\.0\.1:3306\/okwook_ci_metadata\s*\n\s+run: npm ci/)
+  assert.doesNotMatch(workflow, /DATABASE_URL:\s*\$\{\{\s*secrets\./)
+})
+
 test('image publication is manual and uses an immutable commit tag', () => {
   const workflow = read('.github/workflows/docker-image.yml')
 

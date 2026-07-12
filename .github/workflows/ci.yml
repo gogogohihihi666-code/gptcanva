@@ -26,6 +26,8 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        env:
+          DATABASE_URL: mysql://ci:ci@127.0.0.1:3306/okwook_ci_metadata
         run: npm ci
 
       - name: Run no-call tests
