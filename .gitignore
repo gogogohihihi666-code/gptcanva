@@ -14,8 +14,7 @@ dist-ssr
 auto-imports.d.ts
 components.d.ts
 
-# 不维护 npm lock，CI 使用 npm install（无 setup-node 缓存）
-package-lock.json
+# Keep the npm lockfile versioned so local and CI dependency installs match.
 *.local
 .env
 .env.local

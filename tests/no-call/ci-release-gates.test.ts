@@ -19,6 +19,11 @@ test('ordinary main pushes and pull requests run local verification only', () =>
   assert.doesNotMatch(workflow, /secrets\./)
 })
 
+test('npm CI lockfile is versioned for reproducible dependency installation', () => {
+  assert.doesNotThrow(() => read('package-lock.json'))
+  assert.doesNotMatch(read('.gitignore'), /^package-lock\.json$/m)
+})
+
 test('image publication is manual and uses an immutable commit tag', () => {
   const workflow = read('.github/workflows/docker-image.yml')
 
