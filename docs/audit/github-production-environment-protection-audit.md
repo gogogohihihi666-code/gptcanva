@@ -31,7 +31,7 @@ On 2026-07-12, an authorized `read` collaborator invitation was sent to `pc-fans
 ### Trigger relationship
 
 ```text
-master push or pull request
+main push or pull request targeting main
   -> CI verify job
   -> npm ci, no-call tests, service build, client build
 
@@ -48,7 +48,7 @@ There is no local `workflow_run`, `repository_dispatch`, or scheduled production
 
 ### Ordinary CI
 
-`.github/workflows/ci.yml` is triggered only by `master` push and pull requests. It has `contents: read` permissions and performs dependency installation, no-call tests, service build, and client build. It contains no registry login, image publication, SSH, SCP, webhook, production Environment, or production-secret reference.
+`.github/workflows/ci.yml` is triggered only by `main` pushes and pull requests targeting `main`. It has `contents: read` permissions and performs dependency installation, no-call tests, service build, and client build. It contains no registry login, image publication, SSH, SCP, webhook, production Environment, or production-secret reference. The branch alignment is covered by `tests/no-call/ci-release-gates.test.ts`.
 
 Local conclusion: ordinary push does not deploy or publish an image.
 

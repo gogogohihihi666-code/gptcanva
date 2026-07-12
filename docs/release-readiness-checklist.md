@@ -26,6 +26,7 @@ Last frozen baseline update: 2026-07-11.
 ## 2026-07-12 GitHub Production Protection Audit
 
 - Local workflow protections: PASS. Ordinary push and pull request CI contains only install, no-call tests, and builds. Manual image publication and manual deployment are separate workflows, both require a full commit SHA, and deployment declares `environment: production` with a concurrency group.
+- CI branch alignment: PASS. `.github/workflows/ci.yml` now runs for `main` pushes and pull requests targeting `main`, matching the GitHub default branch and the `production` Environment branch policy. The no-call CI gate test prevents a return to `master`.
 - GitHub Environment protections: PASS. Authenticated GitHub API confirms `production` exists, the default branch and sole deployment branch policy are `main`, the single approved reviewer is `pc-fans-mac`, `prevent_self_review=true`, and `can_admins_bypass=false`.
 - `pc-fans-mac` accepted the authorized read-only collaborator invitation. No higher repository permission was granted.
 - Environment Secret count is 0 and repository Secret count is 0. Deployment remains fail-closed until separately authorized production credentials are deliberately added to Environment secrets.

@@ -6,11 +6,12 @@ import test from 'node:test'
 const root = resolve(import.meta.dirname, '../..')
 const read = (path: string) => readFileSync(resolve(root, path), 'utf8')
 
-test('ordinary master pushes and pull requests run local verification only', () => {
+test('ordinary main pushes and pull requests run local verification only', () => {
   const workflow = read('.github/workflows/ci.yml')
 
   assert.match(workflow, /pull_request:/)
-  assert.match(workflow, /push:\s*\n\s+branches:\s*\[master\]/)
+  assert.match(workflow, /push:\s*\n\s+branches:\s*\[main\]/)
+  assert.match(workflow, /pull_request:\s*\n\s+branches:\s*\[main\]/)
   assert.match(workflow, /npm\.cmd run test|npm run test/)
   assert.match(workflow, /npm\.cmd run build:service|npm run build:service/)
   assert.match(workflow, /npm\.cmd run build|npm run build/)

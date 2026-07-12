@@ -27,6 +27,13 @@ Current operating posture:
 - No real OSS / S3 uploads.
 - No real gate opening.
 
+## 2026-07-12 CI Branch Alignment
+
+- `.github/workflows/ci.yml` now runs its no-call verification job only for `main` pushes and pull requests targeting `main`.
+- This matches the GitHub default branch and the `production` Environment branch policy.
+- `tests/no-call/ci-release-gates.test.ts`, the full 111-test no-call suite, TypeScript check, service build, and frontend build: PASS.
+- No workflow was dispatched, no image was published, no deployment occurred, and no push was performed.
+
 ## Completed Modules
 
 - Commercial payment no-call closure.
